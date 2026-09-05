@@ -1,6 +1,35 @@
 # JobHunter — AI 求职操作系统
 
-面向国内求职者的 AI 工作台：**简历工作台 × 职位智能匹配 × 投递进度管理**。
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="design/preview/dashboard.dark.png">
+    <img alt="JobHunter 数据看板" src="design/preview/dashboard.light.png" width="100%">
+  </picture>
+</p>
+
+<p align="center">
+  <strong>面向国内求职者的 AI 工作台：简历工作台 × 职位智能匹配 × Agent 半自动投递</strong><br>
+  Next.js 15 · TypeScript · Drizzle ORM · 208 个测试用例 · Human-in-the-loop Agent
+</p>
+
+<p align="center">
+  <img alt="Next.js 15" src="https://img.shields.io/badge/Next.js-15-black">
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-strict-blue">
+  <img alt="tests" src="https://img.shields.io/badge/tests-208%20passing-brightgreen">
+  <img alt="safety" src="https://img.shields.io/badge/agent-Human--in--the--loop-orange">
+</p>
+
+## 产品预览
+
+| 简历工作台 | 职位中心 · 智能匹配 |
+|---|---|
+| <picture><source media="(prefers-color-scheme: dark)" srcset="design/preview/resumes.dark.png"><img alt="简历工作台" src="design/preview/resumes.light.png"></picture> | <picture><source media="(prefers-color-scheme: dark)" srcset="design/preview/jobs.dark.png"><img alt="职位中心" src="design/preview/jobs.light.png"></picture> |
+
+| 投递看板 | Agent 引导式导入 |
+|---|---|
+| <picture><source media="(prefers-color-scheme: dark)" srcset="design/preview/applications.dark.png"><img alt="投递看板" src="design/preview/applications.light.png"></picture> | <picture><source media="(prefers-color-scheme: dark)" srcset="design/preview/app-modal.dark.png"><img alt="Agent 引导式导入" src="design/preview/app-modal.light.png"></picture> |
+
+> 以上为概念稿渲染图（`design/figma/` 一键重建：`node design/figma/build.mjs`），实际界面已按此设计语言全站落地。
 
 **项目亮点**
 
