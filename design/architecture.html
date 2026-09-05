@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>JobHunter 架构与流程图 · 预览</title>
+<style>
+  :root {
+    --bg: #f6f7fa; --surface: #fff; --surface-2: #f1f3f7; --border: #e7e9f0;
+    --border-strong: #d8dbe4; --t1: #15171d; --t2: #5a6272; --t3: #98a0b0;
+    --primary: #4f46e5; --primary-soft: #edeefe; --primary-soft-border: #d8ddfc;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg); color: var(--t1); display: flex; min-height: 100vh;
+  }
+  aside {
+    width: 232px; shrink: 0; position: sticky; top: 0; height: 100vh; overflow-y: auto;
+    background: var(--surface); border-right: 1px solid var(--border); padding: 20px 12px;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px 16px; }
+  .brand-icon {
+    width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700;
+  }
+  .brand b { font-size: 17px; display: block; line-height: 1.2; }
+  .brand span { font-size: 11px; color: var(--t3); letter-spacing: .1em; }
+  nav a {
+    display: block; padding: 10px 12px; margin-bottom: 6px; border-radius: 11px;
+    font-size: 13.5px; font-weight: 500; color: var(--t2); text-decoration: none;
+  }
+  nav a:hover { background: color-mix(in srgb, var(--primary-soft) 50%, transparent); color: var(--t1); }
+  nav a.active { background: var(--primary-soft); color: var(--primary); font-weight: 600; position: relative; }
+  nav a.active::before {
+    content: ""; position: absolute; left: -1px; top: 50%; transform: translateY(-50%);
+    width: 3.5px; height: 24px; border-radius: 2px; background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  }
+  main { flex: 1; padding: 28px 36px; min-width: 0; }
+  h1 { font-size: 23px; margin-bottom: 4px; }
+  .sub { font-size: 12.5px; color: var(--t3); margin-bottom: 24px; }
+  section {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 28px; margin-bottom: 28px; overflow-x: auto;
+  }
+  section h2 { font-size: 15px; margin-bottom: 4px; }
+  section p.desc { font-size: 12.5px; color: var(--t2); margin-bottom: 18px; line-height: 1.7; }
+  section .err { color: #dc2626; font-size: 13px; padding: 12px; background: #fdecec; border-radius: 10px; }
+  footer { font-size: 12px; color: var(--t3); padding: 4px 4px 28px; line-height: 1.8; }
+  .diagram svg { max-width: 100%; height: auto; }
+</style>
+</head>
+<body>
+<aside>
+  <div class="brand">
+    <div class="brand-icon">J</div>
+    <div><b>JobHunter</b><span>架构与流程图</span></div>
+  </div>
+  <nav id="nav"></nav>
+</aside>
+<main>
+  <h1>系统架构与核心流程</h1>
+  <p class="sub">与 docs/14-架构与流程图.md 同源 · 状态名/表名/阈值均取自代码实证 · Mermaid 由 CDN 渲染（需联网）</p>
+  <div id="content"></div>
+  <footer>
+    图源：docs/14-架构与流程图.md（修改图请改 md 后同步本页）· 交叉引用：docs/02 技术架构 · docs/03 数据库设计 · docs/08 JobSource · docs/11 Agent 安全 · docs/13 Phase 2 测试报告
+  </footer>
+</main>
+
+<!-- 每张图的 Mermaid 源码（text/plain 保证 <br/> 等字面量不被浏览器解析） -->
+<script type="text/plain" id="d2" data-title="2. 项目目录结构（文本树）">
+src/
+├── app/                          Next.js App Router
+│   ├── (app)/                    登录后应用壳（侧边栏布局）
+│   │   ├── layout.tsx            应用壳：鉴权重定向 + AppSidebar + 环境光斑
+│   │   ├── dashboard/            数据看板（漏斗/趋势/环图）
+│   │   ├── resumes/              简历工作台 + [id] 编辑器（AI 诊断/A4 预览/打印导出）
+│   │   ├── jobs/                 职位中心（JD 粘贴 AI 解析、匹配）
+│   │   ├── job-sources/          职位来源（引导式辅助导入）
+│   │   ├── applications/         投递看板（Kanban + 详情弹窗）
+│   │   ├── reminders/            提醒中心
+│   │   └── discovery/            职位发现（五桶推荐 + Agent 运行面板）
+│   ├── login/                    登录/注册（双主题品牌页）
+│   ├── api/v1/                   35 个 REST 路由（薄控制器，详见 docs/04）
+│   ├── globals.css               双主题设计 token（@theme inline + .dark）
+│   └── layout.tsx                根布局（ToastProvider + 主题防闪烁脚本）
+├── components/
+│   ├── ui/                       基础组件库（button/badge/card/field/toast/…13 个）
+│   ├── charts.tsx                手写 SVG 图表（漏斗/趋势面积图/环图/评分环）
+│   ├── app-sidebar.tsx           侧边栏（分组导航 + active 药丸 + 主题切换）
+│   ├── modal.tsx                 通用弹窗（ESC 关闭/尺寸变体）
+│   └── resume/                   A4 简历渲染（templates.ts 模板 spec + ResumePreview）
+├── server/
+│   ├── core/                     领域服务（auth/resume/job/match/application/policy/…）
+│   ├── ai/                       AI 网关（gateway/providers）+ 异步任务执行器（runner）
+│   ├── job-sources/              来源适配（registry/site-catalog/normalizer/deduplicator + 6 适配器）
+│   └── agent/                    投递 Agent（apply-flow/驱动抽象/events 审计）
+├── db/                           Drizzle：schema.ts（20 表）/ client.ts / seed.ts
+├── lib/                          client.ts（前端统一 fetch）/ session.ts（服务端会话）
+├── shared/                       前后端共享类型与 Zod schema（唯一契约源）
+└── testing/                      测试工具（内存 SQLite 等）
+</script>
+<script type="text/plain" id="d1" data-title="1. 系统分层架构">
+flowchart TB
+    subgraph FE["前端（Next.js App Router）"]
+        PAGES["九个页面<br/>login / dashboard / jobs / resumes / resume-detail<br/>applications / reminders / job-sources / discovery"]
+        CLIENT["src/lib/client.ts<br/>统一 fetch：信封解析 · 401 自动刷新重试 · waitForTask 轮询"]
+        PAGES --> CLIENT
+    end
+    subgraph API["API 路由层 src/app/api/v1/**（35 个 route，薄控制器）"]
+        DEFINE["defineRoute 管线<br/>JWT 鉴权 → Zod 校验 → 业务编排 → 错误码映射"]
+    end
+    subgraph CORE["领域服务层 src/server/core/**"]
+        AUTH["auth-service<br/>JWT + 刷新轮换"]
+        RESUME["resume-service"]
+        JOB["job-service"]
+        MATCH["match-service<br/>match-scorer 五维评分"]
+        APP["application-service<br/>投递状态机"]
+        POLICY["policy-engine / policy-service"]
+        RECO["recommendation-service<br/>五桶分桶"]
+        OTHER["user / reminder / dashboard / file-parser"]
+    end
+    subgraph INFRA["基础设施层"]
+        DB[("SQLite（Drizzle ORM）<br/>20 张表，生产可迁 PostgreSQL")]
+        subgraph AI["server/ai —— AI 编排"]
+            RUNNER["runner.ts<br/>ai_tasks 状态机<br/>queued→running→succeeded/failed"]
+            GW["gateway.ts<br/>日限额 · 用量计量"]
+            PROV["providers/<br/>Mock（离线确定性）｜OpenAI 兼容（GLM/DeepSeek）"]
+        end
+        subgraph JS["server/job-sources —— 职位来源适配"]
+            REG["registry / site-catalog"]
+            NORM["normalizer（规范化+SHA-256 指纹）"]
+            DEDUP["deduplicator（三级去重）"]
+            ADP["adapters：mock｜boss｜liepin｜zhilian｜lagou｜job51（辅助导入）"]
+        end
+        subgraph AG["server/agent —— 投递 Agent"]
+            FLOW["apply-flow.ts（Level 1 半自动）"]
+            DRV["drivers/MockBrowserDriver<br/>（BrowserDriver 抽象，登录墙/验证码即停）"]
+            EVT["events.ts → agent_events 审计"]
+        end
+    end
+    CLIENT -->|"fetch /api/v1/**"| DEFINE
+    DEFINE --> CORE
+    CORE --> DB
+    CORE -->|"异步 AI 任务"| RUNNER
+    RUNNER --> GW --> PROV
+    DEFINE -->|"导入"| ADP
+    ADP --> NORM --> DEDUP
+    REG --> ADP
+    DEDUP -->|"NEW/EXACT/POSSIBLE"| JOB
+    MATCH -->|"评分"| RECO
+    DEFINE -->|"Agent 运行"| FLOW
+    FLOW --> DRV
+    FLOW --> EVT
+    FLOW -->|"门禁"| POLICY
+    FLOW -->|"生成打招呼语"| GW
+</script>
+
+<script type="text/plain" id="d3" data-title="3. 数据模型 ER 图">
+erDiagram
+    users ||--o| user_profiles : "求职画像"
+    users ||--o{ refresh_tokens : "刷新令牌轮换"
+    users ||--o{ resumes : "拥有"
+    users ||--o{ application_policies : "投递策略"
+    users ||--o{ reminders : "提醒"
+    resumes ||--o{ resume_versions : "多版本"
+    resumes ||--o{ resume_files : "上传原件"
+    resumes ||--o{ resume_analyses : "AI 诊断"
+    resumes ||--o{ job_matches : "参与匹配"
+    files ||--o{ resume_files : "文件存储"
+    companies ||--o{ jobs : "建档"
+    jobs ||--o{ job_favorites : "收藏"
+    jobs ||--o{ job_matches : "被匹配"
+    jobs ||--o{ applications : "被投递"
+    jobs ||--o{ embeddings : "向量化预留"
+    applications ||--o{ application_events : "流转时间线"
+    applications ||--o{ reminders : "关联提醒"
+    applications ||--o{ agent_events : "Agent 留痕"
+    users ||--o{ applications : "发起"
+    users ||--o{ job_matches : "评分主体"
+    users ||--o{ ai_tasks : "任务归属"
+    users { string id PK }
+    users { string email UK }
+    user_profiles { string user_id FK }
+    resumes { string id PK }
+    resumes { string user_id FK }
+    resumes { bool is_primary }
+    resume_versions { string resume_id FK }
+    resume_versions { string source }
+    job_matches { number total_score }
+    job_matches { json explanation }
+    companies { string name }
+    jobs { string company_id FK }
+    jobs { string fingerprint UK }
+    jobs { string source }
+    applications { string stage }
+    application_events { string type }
+    reminders { string status }
+    application_policies { json rules }
+    ai_tasks { string type }
+    ai_tasks { string status }
+    agent_events { string action }
+    agent_events { string result }
+    refresh_tokens { string token_hash }
+</script>
+
+<script type="text/plain" id="d4" data-title="4. 认证流程（时序）">
+sequenceDiagram
+    participant B as 浏览器 lib/client.ts
+    participant A as /api/v1/auth/*
+    participant D as SQLite
+    B->>A: POST /login（email + password）
+    A->>A: bcrypt 校验
+    A->>D: 写 refresh_tokens（存 sha256，明文不入库）
+    A-->>B: Set-Cookie jh_access（15min）+ jh_refresh（30 天）
+    B->>A: 业务请求（带 jh_access）
+    alt access 有效
+        A-->>B: 200 信封 {code, data}
+    else access 过期
+        A-->>B: 401
+        B->>A: POST /refresh（带 jh_refresh）
+        A->>D: 校验哈希 → 轮换（旧令牌吊销，发新对）
+        A-->>B: 新 jh_access + 新 jh_refresh
+        B->>A: 重放原业务请求
+        A-->>B: 200
+    end
+    B->>A: POST /logout
+    A->>D: 吊销 refresh_tokens
+    A-->>B: 清 Cookie
+</script>
+
+<script type="text/plain" id="d5" data-title="5. AI 异步任务流程">
+flowchart TB
+    A["页面发起<br/>POST /jobs/parse 等业务路由"] --> B["领域服务校验入参<br/>创建 ai_tasks：status=queued"]
+    B --> C["进程内执行器 runner<br/>认领任务 → status=running"]
+    C --> D["组装 Prompt（prompts.ts）<br/>调 gateway.generateText"]
+    D --> E{"gateway 前置检查"}
+    E -->|"超日限额 AI_DAILY_LIMIT"| F["任务失败 status=failed<br/>业务侧降级（如打招呼语回退模板）"]
+    E -->|"放行"| G{"Provider"}
+    G -->|"Mock（默认，离线确定性）"| H["返回结构化 JSON"]
+    G -->|"OpenAI 兼容（GLM/DeepSeek）"| H
+    H --> I["stripCodeFence + JSON.parse<br/>非法/空响应 → failed 或降级"]
+    I --> J["status=succeeded，output 入库"]
+    J --> K["前端 waitForTask 轮询<br/>GET /ai-tasks/:id"]
+    K --> L{"终态?"}
+    L -->|"succeeded"| M["页面取 output.data<br/>解析结果确认后入库"]
+    L -->|"failed"| N["页面提示，可重试"]
+</script>
+
+<script type="text/plain" id="d6" data-title="6. 职位导入与去重流程">
+flowchart TB
+    U["用户在职位来源页<br/>粘贴 职位 URL + JD"] --> S["选定适配器（registry）<br/>mock ｜ boss ｜ liepin ｜ zhilian ｜ lagou ｜ job51"]
+    S --> N["normalizer 规范化<br/>剥 HTML/压空白/薪资统一/公司去后缀/城市归一"]
+    N --> FP["内容指纹 = SHA-256 截 40 位"]
+    FP --> D1{"一级：source+source_job_id 精确命中?"}
+    D1 -->|"命中"| EX1["EXACT_DUPLICATE"]
+    D1 -->|"未命中"| D2{"二级：内容指纹命中?（跨平台同内容）"}
+    D2 -->|"命中"| EX2["EXACT_DUPLICATE"]
+    D2 -->|"未命中"| D3{"三级：公司+职位+城市一致但内容不同?"}
+    D3 -->|"命中"| PS["POSSIBLE_DUPLICATE（仅提示不合并）"]
+    D3 -->|"未命中"| NEW["NEW → 创建 jobs + 公司自动建档"]
+    EX2 --> R["返回 {job, dedupe, warnings}<br/>自动用主简历计算匹配度"]
+    PS --> R
+    NEW --> R
+</script>
+
+<script type="text/plain" id="d7" data-title="7. 匹配与推荐流程">
+flowchart TB
+    R["选择简历 × 职位"] --> S["match-scorer 五维评分"]
+    S --> W1["技能 0.4"]
+    S --> W2["经验 0.25"]
+    S --> W3["学历 0.15"]
+    S --> W4["城市 0.1"]
+    S --> W5["薪资 0.1"]
+    S --> M["job_matches 落库<br/>可选 AI 解读 strengths/gaps/risks"]
+    M --> B{"recommendation-service 分桶<br/>POST /recommendations/refresh 重算"}
+    B -->|"total_score ≥ 85"| B1["strong 强烈推荐"]
+    B -->|"70 ≤ score < 85"| B2["recommended 推荐"]
+    B -->|"score < 70"| B3["confirm 待确认"]
+    B -->|"已有 application"| B4["applied 已投递"]
+    B1 --> D["职位发现页五桶展示<br/>→ Agent 半自动 / 手动投递"]
+    B2 --> D
+    B3 --> D
+    B4 --> D
+</script>
+
+<script type="text/plain" id="d8" data-title="8. Agent 投递状态机">
+stateDiagram-v2
+    [*] --> running: POST /agent/runs
+    state running {
+        [*] --> open_page
+        open_page --> login_wall_stop: kind=login_wall 即停
+        open_page --> job_detail
+        job_detail --> click_apply
+        click_apply --> captcha_blocked: kind=captcha
+        click_apply --> apply_form
+        apply_form --> policy_check
+        policy_check --> policy_reject: REJECT 硬性不满足
+        policy_check --> need_confirm: 软性 REQUIRE_USER_CONFIRMATION
+        policy_check --> content_gen: ALLOW
+        need_confirm --> content_gen
+        content_gen --> fill_form: AI 打招呼语失败降级模板
+        fill_form --> wait_user_confirm: confirm 前不提交
+    }
+    wait_user_confirm --> awaiting_confirmation
+    awaiting_confirmation --> submitted: 用户确认提交成功
+    awaiting_confirmation --> failed: 提交失败
+    awaiting_confirmation --> rejected_by_user: 用户拒绝
+    awaiting_confirmation --> handed_over_to_user: 接管（不可逆）
+    captcha_blocked --> awaiting_captcha_check: blocked_reminder_created
+    awaiting_captcha_check --> running: 复检通过（≤2 次）
+    awaiting_captcha_check --> handed_over_to_user: 接管处理
+    login_wall_stop --> handed_over_to_user: 需登录提醒 + 接管
+    submitted --> [*]
+    failed --> [*]
+    rejected_by_user --> [*]
+    handed_over_to_user --> [*]
+</script>
+
+<script type="module">
+  const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/esm/min/mermaid.min.js")).default;
+  mermaid.initialize({ startOnLoad: false, securityLevel: "loose", theme: "base", themeVariables: {
+    primaryColor: "#edeefe", primaryTextColor: "#15171d", primaryBorderColor: "#d8ddfc",
+    lineColor: "#98a0b0", secondaryColor: "#f1f3f7", tertiaryColor: "#f6f7fa",
+    fontFamily: 'Inter, "PingFang SC", "Microsoft YaHei", sans-serif', fontSize: "14px",
+  }});
+
+  const srcs = [...document.querySelectorAll('script[type="text/plain"]')];
+  const nav = document.getElementById("nav");
+  const content = document.getElementById("content");
+
+  for (const s of srcs) {
+    const id = s.id;
+    const title = s.dataset.title;
+    const a = document.createElement("a");
+    a.href = `#${id}`; a.textContent = title;
+    nav.appendChild(a);
+
+    const sec = document.createElement("section");
+    sec.id = id;
+    const h2 = document.createElement("h2"); h2.textContent = title;
+    const box = document.createElement("div"); box.className = "diagram";
+    sec.append(h2, box);
+    content.appendChild(sec);
+
+    try {
+      if (id === "d2") {
+        const pre = document.createElement("pre");
+        pre.style.cssText = "font-family:Consolas,'Courier New',monospace;font-size:12.5px;line-height:1.75;color:var(--t2);overflow-x:auto;";
+        pre.textContent = s.textContent.trim();
+        box.appendChild(pre);
+      } else {
+        const { svg } = await mermaid.render(`svg-${id}`, s.textContent.trim());
+        box.innerHTML = svg;
+      }
+    } catch (e) {
+      const err = document.createElement("div");
+      err.className = "err";
+      err.textContent = "Mermaid 渲染失败：" + (e?.message ?? e);
+      box.appendChild(err);
+    }
+  }
+
+  // 侧边导航高亮
+  const obs = new IntersectionObserver((es) => {
+    es.forEach((en) => {
+      if (en.isIntersecting) {
+        nav.querySelectorAll("a").forEach((x) => x.classList.toggle("active", x.getAttribute("href") === `#${en.target.id}`));
+      }
+    });
+  }, { rootMargin: "-20% 0px -70% 0px" });
+  document.querySelectorAll("section").forEach((x) => obs.observe(x));
+</script>
+</body>
+</html>

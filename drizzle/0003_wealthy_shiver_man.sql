@@ -1,0 +1,1 @@
+ALTER TABLE `job_matches` ADD `ai_explanation` text;

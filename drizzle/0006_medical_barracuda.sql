@@ -1,0 +1,1 @@
+ALTER TABLE `user_profiles` ADD `match_weights` text;

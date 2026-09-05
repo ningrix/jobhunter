@@ -1,0 +1,15 @@
+node_modules/
+.next/
+out/
+data/
+*.db
+.env
+.env.local
+*.tsbuildinfo
+next-env.d.ts
+.DS_Store
+media-demo/
+output/
+.mimosa/
+.playwright-cli/
+.zcode/

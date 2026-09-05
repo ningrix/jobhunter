@@ -1,0 +1,61 @@
+/**
+ * 国内招聘站点目录：来源元数据的唯一维护处（Phase 7 Company Intelligence 的地基）。
+ *
+ * ⚠️ NEEDS_VERIFICATION：以下站点的「职位 URL → sourceJobId」提取规则均未在真实站点逐一实证，
+ * 适配器对提取失败采取宽松策略（sourceJobId 置空，不阻塞导入；去重回退内容指纹）。
+ * 在真实站点 Smoke 验证前，不得将任何规则当作事实写入文档。
+ */
+
+export interface ChinaSiteInfo {
+  id: string;
+  name: string;
+  homepage: string;
+  /** 求职入口提示（辅助导入页展示给用户的操作指引） */
+  careersHint: string;
+  needsVerification: boolean;
+}
+
+export const CHINA_SITES: ChinaSiteInfo[] = [
+  {
+    id: "liepin",
+    name: "猎聘",
+    homepage: "https://www.liepin.com",
+    careersHint: "在猎聘职位详情页复制 URL 与 JD 全文后粘贴导入",
+    needsVerification: true,
+  },
+  {
+    id: "zhilian",
+    name: "智联招聘",
+    homepage: "https://www.zhaopin.com",
+    careersHint: "在智联职位详情页复制 URL 与 JD 全文后粘贴导入",
+    needsVerification: true,
+  },
+  {
+    id: "lagou",
+    name: "拉勾招聘",
+    homepage: "https://www.lagou.com",
+    careersHint: "在拉勾职位详情页复制 URL 与 JD 全文后粘贴导入",
+    needsVerification: true,
+  },
+  {
+    id: "job51",
+    name: "前程无忧",
+    homepage: "https://www.51job.com",
+    careersHint: "在前程无忧职位详情页复制 URL 与 JD 全文后粘贴导入",
+    needsVerification: true,
+  },
+];
+
+export function getChinaSite(id: string): ChinaSiteInfo | undefined {
+  return CHINA_SITES.find((s) => s.id === id);
+}
+
+/** 按站点模式宽松提取 sourceJobId；全部未命中返回 undefined（不阻塞导入） */
+export function extractWithPatterns(url: string | undefined, patterns: RegExp[]): string | undefined {
+  if (!url) return undefined;
+  for (const p of patterns) {
+    const m = url.match(p);
+    if (m?.[1]) return m[1];
+  }
+  return undefined;
+}

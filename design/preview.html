@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>JobHunter 概念设计稿 · Figma 导入预览</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f6f7fa; color: #15171d; padding: 32px;
+  }
+  body.dark { background: #0b0c10; color: #eef1f7; }
+  header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+  h1 { font-size: 20px; font-weight: 700; }
+  .sub { font-size: 13px; color: #5a6272; }
+  body.dark .sub { color: #9aa3b6; }
+  .toggle { margin-left: auto; display: flex; gap: 8px; }
+  .toggle button {
+    border: 1px solid #d8dbe4; background: #fff; color: #5a6272;
+    padding: 8px 18px; border-radius: 10px; font-size: 13px; cursor: pointer; font-weight: 600;
+  }
+  body.dark .toggle button { background: #15171e; border-color: #343949; color: #9aa3b6; }
+  .toggle button.active {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    border-color: transparent; color: #fff;
+  }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(560px, 1fr)); gap: 28px; }
+  .frame-item { border: 1px solid #e7e9f0; border-radius: 16px; overflow: hidden; background: #fff; }
+  body.dark .frame-item { background: #15171e; border-color: #262a35; }
+  .frame-item img { width: 100%; display: block; aspect-ratio: 1440 / 1024; object-fit: cover; object-position: top; }
+  .frame-item figcaption {
+    padding: 12px 16px; font-size: 13px; font-weight: 600; border-top: 1px solid #e7e9f0; display: flex; justify-content: space-between;
+  }
+  body.dark .frame-item figcaption { border-color: #262a35; }
+  .frame-item figcaption span { color: #98a0b0; font-weight: 400; font-size: 12px; }
+  footer { margin-top: 28px; font-size: 12.5px; color: #98a0b0; line-height: 1.8; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>JobHunter — AI 求职操作系统 · 概念设计稿</h1>
+    <div class="sub">现代 SaaS 风 · 1440×1024 · 共 8 个画面 × 浅/深双主题 · 可直接拖入 Figma</div>
+  </div>
+  <div class="toggle">
+    <button id="btn-light" class="active" onclick="setTheme('light')">浅色</button>
+    <button id="btn-dark" onclick="setTheme('dark')">深色</button>
+  </div>
+</header>
+
+<main class="grid" id="grid"></main>
+
+<footer>
+  导入 Figma：将 <code>design/figma/frames/*.svg</code> 直接拖入 Figma 画布，即得到 1440×1024 的 Frame，
+  文字/矢量均为可编辑图层（Inter 为 Figma 默认字体，中文回退系统字体）。<br />
+  本页面用本地静态服务预览：<code>cd design && python -m http.server 4573</code> →
+  <a href="http://127.0.0.1:4573/preview.html">http://127.0.0.1:4573/preview.html</a>
+</footer>
+
+<script>
+const FRAMES = [
+  ['login', '登录 / 注册'],
+  ['dashboard', '仪表盘'],
+  ['jobs', '职位中心'],
+  ['resumes', '简历工作台'],
+  ['resume-detail', '简历编辑 · AI 诊断'],
+  ['applications', '投递看板'],
+  ['app-modal', '投递详情弹窗'],
+  ['reminders', '提醒'],
+];
+let theme = 'light';
+function render() {
+  const grid = document.getElementById('grid');
+  grid.innerHTML = FRAMES.map(([key, label]) => `
+    <figure class="frame-item">
+      <img src="figma/frames/${key}.${theme}.svg" alt="${label}" loading="lazy" />
+      <figcaption>${label}<span>${key}.${theme}.svg · 1440×1024</span></figcaption>
+    </figure>`).join('');
+}
+function setTheme(t) {
+  theme = t;
+  document.body.classList.toggle('dark', t === 'dark');
+  document.getElementById('btn-light').classList.toggle('active', t === 'light');
+  document.getElementById('btn-dark').classList.toggle('active', t === 'dark');
+  render();
+}
+render();
+</script>
+</body>
+</html>

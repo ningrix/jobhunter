@@ -1,0 +1,194 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ============ 设计 token（与 design/figma/tokens.mjs 同源）============ */
+:root {
+  color-scheme: light;
+
+  --bg: #f6f7fa;
+  --bg-tint: #eef0fb;
+  --surface: #ffffff;
+  --surface-2: #f1f3f7;
+  --surface-3: #e9ecf3;
+  --border: #e7e9f0;
+  --border-strong: #d8dbe4;
+
+  --t1: #15171d;
+  --t2: #5a6272;
+  --t3: #98a0b0;
+
+  --primary: #4f46e5;
+  --primary-hover: #4338ca;
+  --primary-soft: #edeefe;
+  --primary-soft-border: #d8ddfc;
+  --on-primary: #ffffff;
+
+  --success: #059669;
+  --success-soft: #e4f6ee;
+  --success-border: #c2e8d6;
+  --warn: #d97706;
+  --warn-soft: #fcf3e2;
+  --warn-border: #f2e0ba;
+  --danger: #dc2626;
+  --danger-soft: #fdecec;
+  --danger-border: #f5cfcd;
+
+  --scrim: rgba(18, 20, 32, 0.48);
+  --shadow-card: 0 1px 2px rgba(23, 23, 60, 0.05);
+
+  /* 投递阶段色（看板列 / 环图 / 漏斗共用） */
+  --stage-wishlist: #a5b4fc;
+  --stage-applied: #6366f1;
+  --stage-written: #8b5cf6;
+  --stage-interview: #c084fc;
+  --stage-offer: #10b981;
+  --stage-rejected: #f87171;
+  --stage-closed: #d3d7e0;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --bg: #0b0c10;
+  --bg-tint: #101120;
+  --surface: #15171e;
+  --surface-2: #1c1f28;
+  --surface-3: #242834;
+  --border: #262a35;
+  --border-strong: #343949;
+
+  --t1: #eef1f7;
+  --t2: #9aa3b6;
+  --t3: #666e80;
+
+  --primary: #818cf8;
+  --primary-hover: #a5b0ff;
+  --primary-soft: #24284d;
+  --primary-soft-border: #373c72;
+  --on-primary: #ffffff;
+
+  --success: #34d399;
+  --success-soft: #0f2a20;
+  --success-border: #1d4536;
+  --warn: #fbbf24;
+  --warn-soft: #2b2210;
+  --warn-border: #4a3a17;
+  --danger: #f87171;
+  --danger-soft: #2e1517;
+  --danger-border: #4d2225;
+
+  --scrim: rgba(4, 5, 10, 0.66);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35);
+
+  --stage-wishlist: #a5b4fc;
+  --stage-applied: #818cf8;
+  --stage-written: #a78bfa;
+  --stage-interview: #c084fc;
+  --stage-offer: #34d399;
+  --stage-rejected: #f87171;
+  --stage-closed: #3c414e;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-tint: var(--bg-tint);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-t1: var(--t1);
+  --color-t2: var(--t2);
+  --color-t3: var(--t3);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-soft-border: var(--primary-soft-border);
+  --color-on-primary: var(--on-primary);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-success-border: var(--success-border);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-warn-border: var(--warn-border);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-border: var(--danger-border);
+  --color-scrim: var(--scrim);
+  --color-stage-wishlist: var(--stage-wishlist);
+  --color-stage-applied: var(--stage-applied);
+  --color-stage-written: var(--stage-written);
+  --color-stage-interview: var(--stage-interview);
+  --color-stage-offer: var(--stage-offer);
+  --color-stage-rejected: var(--stage-rejected);
+  --color-stage-closed: var(--stage-closed);
+  --shadow-card: var(--shadow-card);
+  --font-sans: Inter, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* ============ 渐变工具类 ============ */
+@utility bg-gradient-brand {
+  background-image: linear-gradient(135deg, #6366f1, #8b5cf6);
+}
+@utility bg-gradient-bar {
+  background-image: linear-gradient(90deg, #6366f1, #8b5cf6);
+}
+
+/* 环境光斑（代替玻璃拟态：两团径向渐变，边缘缓慢衰减） */
+.glow-a {
+  background: radial-gradient(circle closest-side, rgba(99, 102, 241, 0.42), transparent);
+}
+.glow-b {
+  background: radial-gradient(circle closest-side, rgba(139, 92, 246, 0.34), transparent);
+}
+.dark .glow-a {
+  background: radial-gradient(circle closest-side, rgba(99, 102, 241, 0.6), transparent);
+}
+.dark .glow-b {
+  background: radial-gradient(circle closest-side, rgba(139, 92, 246, 0.5), transparent);
+}
+
+body {
+  background: var(--bg);
+  color: var(--t1);
+}
+
+/* 简历预览缩放（Chromium/Edge zoom 可正确回流高度） */
+.resume-zoom {
+  zoom: 0.58;
+}
+
+/* —— A4 打印导出：只输出简历本体 —— */
+@media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+  body {
+    background: white !important;
+  }
+  aside {
+    display: none !important;
+  }
+  main {
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+  .print-hidden {
+    display: none !important;
+  }
+  .resume-zoom {
+    zoom: 1 !important;
+  }
+  #resume-print-root {
+    width: 210mm !important;
+    min-height: 297mm !important;
+    padding: 12mm 14mm !important;
+    box-shadow: none !important;
+  }
+  section,
+  li {
+    break-inside: avoid;
+  }
+}
