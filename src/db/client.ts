@@ -1,16 +1,23 @@
 import fs from "node:fs";
 import path from "node:path";
+import { z } from "zod";
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import * as schema from "./schema";
 
+/** DB_PATH 校验：非空、拒绝目录穿越片段（..） */
+const DbPathSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .refine((p) => !p.split(/[\\/]/).includes(".."), "不允许包含目录穿越片段（..）");
+
 let _db: ReturnType<typeof createDb> | null = null;
 
 function createDb(dbPath: string) {
-  // dbPath 仅来自服务端启动配置（DB_PATH env / 测试显式传入），
-  // 不存在任何用户输入入口；此处有意允许项目外绝对路径（CI/tmp 测试目录）。
-  const abs = path.resolve(dbPath);
+  // dbPath 由 getDb() 在调用侧完成穿越校验与 path.resolve 规范化后传入
+  const abs = path.isAbsolute(dbPath) ? dbPath : path.resolve(dbPath);
   fs.mkdirSync(path.dirname(abs), { recursive: true });
   const sqlite = new Database(abs);
   sqlite.pragma("journal_mode = WAL");
@@ -26,7 +33,12 @@ export type Db = ReturnType<typeof createDb>;
 /** 惰性单例：避免在 Next build 阶段打开数据库 */
 export function getDb(): Db {
   if (_db) return _db;
-  _db = createDb(process.env.DB_PATH ?? "./data/jobhunter.db");
+  // DB_PATH 为服务端受信任配置（无用户输入入口），仍按边界惯例做 zod fail-fast 校验
+  const parsed = DbPathSchema.safeParse(process.env.DB_PATH ?? "./data/jobhunter.db");
+  if (!parsed.success) {
+    throw new Error(`非法 DB_PATH: ${parsed.error.issues[0]?.message ?? "校验失败"}`);
+  }
+  _db = createDb(path.resolve(parsed.data));
   return _db;
 }
 
