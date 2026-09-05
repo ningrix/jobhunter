@@ -8,6 +8,8 @@ import * as schema from "./schema";
 let _db: ReturnType<typeof createDb> | null = null;
 
 function createDb(dbPath: string) {
+  // dbPath 仅来自服务端启动配置（DB_PATH env / 测试显式传入），
+  // 不存在任何用户输入入口；此处有意允许项目外绝对路径（CI/tmp 测试目录）。
   const abs = path.resolve(dbPath);
   fs.mkdirSync(path.dirname(abs), { recursive: true });
   const sqlite = new Database(abs);

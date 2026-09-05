@@ -88,7 +88,7 @@ export function cookieValue(res: NextResponse, name: string): string | undefined
 export async function createTestUser(email?: string, name = "测试用户") {
   const user = await registerUser({
     email: email ?? `user-${crypto.randomUUID().slice(0, 8)}@test.cn`,
-    password: "password123",
+    password: process.env.TEST_USER_PASSWORD ?? "password123",
     name,
   });
   const tokens = await issueTokensFor(user);

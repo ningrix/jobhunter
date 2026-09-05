@@ -182,7 +182,7 @@ async function main() {
 
   const user = await registerUser({
     email: DEMO_EMAIL,
-    password: "demo12345",
+    password: process.env.DEMO_PASSWORD ?? "demo12345",
     name: "李晓阳",
   });
   await updateProfile(user.id, {
