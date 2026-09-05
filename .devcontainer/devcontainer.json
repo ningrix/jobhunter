@@ -1,0 +1,17 @@
+{
+  "name": "JobHunter",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:20",
+  "postCreateCommand": "npm install && npm run db:seed",
+  "forwardPorts": [3000],
+  "portsAttributes": {
+    "3000": {
+      "label": "JobHunter",
+      "onAutoForward": "openPreview"
+    }
+  },
+  "customizations": {
+    "codespaces": {
+      "openFiles": ["README.md"]
+    }
+  }
+}
