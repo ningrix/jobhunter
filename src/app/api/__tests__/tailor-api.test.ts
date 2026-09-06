@@ -126,6 +126,16 @@ describe("JD → 简历定制（V3.1 B5）", () => {
       }
     }
 
+    // V3.4 溯源：每条措辞建议带 evidence，且 evidence 只能是 matched/partial 的覆盖关键词
+    const coverageKeywords = tailor.keywordCoverage.map((c) => c.keyword);
+    expect(tailor.wordingSuggestions.length).toBeGreaterThan(0);
+    for (const w of tailor.wordingSuggestions) {
+      expect(w.evidence).toBeDefined();
+      expect(w.evidence!.status).not.toBe("missing");
+      expect(coverageKeywords).toContain(w.evidence!.keyword);
+      expect(["matched", "partial"]).toContain(w.evidence!.status);
+    }
+
     // 任务轮询接口可读
     const taskRes = await callRoute(taskRoute, { token, params: { id: taskId } });
     expect((expectOk(taskRes.json) as { status: string }).status).toBe("succeeded");

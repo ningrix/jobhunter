@@ -26,7 +26,8 @@ export async function getAiSettingsView(userId: string): Promise<AiSettingsView>
   if (!row) {
     return {
       configured: false,
-      enabled: false,
+      // 未配置时默认启用：前端复选框据此勾上，避免首次保存即落库为「停用」
+      enabled: true,
       provider: "openai-compat",
       baseUrl: "",
       model: "",

@@ -59,3 +59,28 @@ export function extractWithPatterns(url: string | undefined, patterns: RegExp[])
   }
   return undefined;
 }
+
+// ———— V3.3：职位雷达站点目录（服务端抓取公开列表页 → AI 结构化抽取 → 去重入库） ————
+
+export interface RadarSiteInfo {
+  id: string;
+  name: string;
+  /** 公开列表页 URL（服务端 safeFetch 抓取，不登录、不碰验证码） */
+  listUrl: string;
+  note: string;
+  needsVerification: boolean;
+}
+
+/**
+ * ⚠️ NEEDS_VERIFICATION：站点可抓性随反爬策略波动。
+ * v1 仅收录已验证服务端可抓的猎聘 m 站校招企业列表；后续加源 = 追加一行。
+ */
+export const RADAR_SITES: RadarSiteInfo[] = [
+  {
+    id: "liepin-campus",
+    name: "猎聘 · 校园招聘企业列表",
+    listUrl: "https://m.liepin.com/campus/comp-list/",
+    note: "公开校招企业列表页，无需登录；曾于 2026-09 实测服务端可抓取",
+    needsVerification: true,
+  },
+];

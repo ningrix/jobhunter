@@ -18,9 +18,19 @@ export interface SessionUser {
   name: string;
 }
 
+/** .env.example 里的示例值：照抄到生产等于没有密钥，显式拒绝 */
+const PLACEHOLDER_SECRET = "change-me-to-a-random-32-char-secret";
+
 function secretKey(): Uint8Array {
-  const s = process.env.JWT_SECRET ?? "dev-secret-change-me-0123456789abcdef";
-  return new TextEncoder().encode(s);
+  const s = process.env.JWT_SECRET;
+  // 生产 fail-fast：缺密钥/照抄示例/强度不足时在首次签发/校验处抛错（不在模块顶层抛，
+  // 否则 next build 的模块求值阶段也会被中断）；本地 dev/test 不受影响。
+  if (process.env.NODE_ENV === "production" && (!s || s === PLACEHOLDER_SECRET || s.length < 32)) {
+    throw new Error(
+      "[config] 生产环境必须设置 JWT_SECRET（≥32 位随机串，且不得使用示例值）；本地开发可不配置",
+    );
+  }
+  return new TextEncoder().encode(s ?? "dev-secret-change-me-0123456789abcdef");
 }
 
 // —— 密码 ——
@@ -116,7 +126,13 @@ export async function issueTokensFor(user: { id: string; email: string }) {
 }
 
 export function setAuthCookies(res: NextResponse, tokens: { accessToken: string; refreshToken: string }) {
-  const base = { httpOnly: true, sameSite: "lax" as const, path: "/" };
+  const base = {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    path: "/",
+    // 生产（HTTPS）下强制 secure；本地 dev/test 保持关闭，否则 http 下浏览器丢弃 cookie
+    ...(process.env.NODE_ENV === "production" ? { secure: true } : {}),
+  };
   res.cookies.set(ACCESS_COOKIE, tokens.accessToken, { ...base, maxAge: ACCESS_TTL_SEC });
   res.cookies.set(REFRESH_COOKIE, tokens.refreshToken, {
     ...base,
@@ -125,7 +141,12 @@ export function setAuthCookies(res: NextResponse, tokens: { accessToken: string;
 }
 
 export function clearAuthCookies(res: NextResponse) {
-  const base = { httpOnly: true, sameSite: "lax" as const, path: "/" };
+  const base = {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    path: "/",
+    ...(process.env.NODE_ENV === "production" ? { secure: true } : {}),
+  };
   res.cookies.set(ACCESS_COOKIE, "", { ...base, maxAge: 0 });
   res.cookies.set(REFRESH_COOKIE, "", { ...base, maxAge: 0 });
 }

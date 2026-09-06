@@ -194,8 +194,113 @@ export async function markParseDone(
     .where(and(eq(resumeVersions.id, versionId), eq(resumeVersions.resumeId, resumeId)));
   await db
     .update(resumeFiles)
-    .set({ parseStatus: "done" })
+    .set({ parseStatus: "done", parseError: null })
     .where(eq(resumeFiles.resumeId, resumeId));
+}
+
+/** Stage B：解析失败也要让用户看到原因——文件与简历保留，仅标记状态 */
+export async function markParseFailed(
+  resumeId: string,
+  versionId: string,
+  error: string,
+): Promise<void> {
+  const db = getDb();
+  const msg = error.slice(0, 300);
+  await db
+    .update(resumeVersions)
+    .set({ note: `解析失败：${msg}` })
+    .where(and(eq(resumeVersions.id, versionId), eq(resumeVersions.resumeId, resumeId)));
+  await db
+    .update(resumeFiles)
+    .set({ parseStatus: "failed", parseError: msg })
+    .where(eq(resumeFiles.resumeId, resumeId));
+}
+
+export interface ResumeFileInfo {
+  fileId: string;
+  fileName: string;
+  mime: string;
+  size: number;
+  /** 相对 data/ 目录的路径；前端展示为本地文件地址 */
+  filePath: string;
+  parseStatus: "pending" | "done" | "failed";
+  parseError: string | null;
+}
+
+/** 某份简历关联的上传文件信息（无上传文件返回 null） */
+export async function getResumeFileInfo(
+  userId: string,
+  resumeId: string,
+): Promise<ResumeFileInfo | null> {
+  await ownedResume(userId, resumeId);
+  const [row] = await getDb()
+    .select({
+      fileId: files.id,
+      fileName: files.name,
+      mime: files.mime,
+      size: files.size,
+      filePath: files.path,
+      parseStatus: resumeFiles.parseStatus,
+      parseError: resumeFiles.parseError,
+    })
+    .from(resumeFiles)
+    .innerJoin(files, eq(resumeFiles.fileId, files.id))
+    .where(eq(resumeFiles.resumeId, resumeId))
+    .limit(1);
+  if (!row) return null;
+  return { ...row, parseStatus: row.parseStatus as ResumeFileInfo["parseStatus"] };
+}
+
+/** 列表页用：该用户全部简历的文件信息，按 resumeId 索引 */
+export async function listResumeFileInfos(
+  userId: string,
+): Promise<Record<string, ResumeFileInfo>> {
+  const rows = await getDb()
+    .select({
+      resumeId: resumeFiles.resumeId,
+      fileId: files.id,
+      fileName: files.name,
+      mime: files.mime,
+      size: files.size,
+      filePath: files.path,
+      parseStatus: resumeFiles.parseStatus,
+      parseError: resumeFiles.parseError,
+    })
+    .from(resumeFiles)
+    .innerJoin(files, eq(resumeFiles.fileId, files.id))
+    .innerJoin(resumes, eq(resumeFiles.resumeId, resumes.id))
+    .where(eq(resumes.userId, userId));
+  const map: Record<string, ResumeFileInfo> = {};
+  for (const r of rows) {
+    map[r.resumeId] = {
+      fileId: r.fileId,
+      fileName: r.fileName,
+      mime: r.mime,
+      size: r.size,
+      filePath: r.filePath,
+      parseStatus: r.parseStatus as ResumeFileInfo["parseStatus"],
+      parseError: r.parseError,
+    };
+  }
+  return map;
+}
+
+/** 重新解析定位：上传时创建的 v1 版本（source="upload" 的最早版本），避免覆盖用户后续手改 */
+export async function getOriginalUploadVersion(
+  userId: string,
+  resumeId: string,
+): Promise<ResumeVersionRow> {
+  await ownedResume(userId, resumeId);
+  const [version] = await getDb()
+    .select()
+    .from(resumeVersions)
+    .where(and(eq(resumeVersions.resumeId, resumeId), eq(resumeVersions.source, "upload")))
+    .orderBy(resumeVersions.versionNo)
+    .limit(1);
+  if (!version) {
+    throw new AppError(ErrorCode.VALIDATION, "该简历没有上传解析版本，无法重新解析");
+  }
+  return version;
 }
 
 export async function saveAnalysis(

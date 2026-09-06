@@ -14,7 +14,9 @@
 <p align="center">
   <img alt="Next.js 15" src="https://img.shields.io/badge/Next.js-15-black">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-strict-blue">
-  <img alt="tests" src="https://img.shields.io/badge/tests-208%20passing-brightgreen">
+  <img alt="tests" src="https://img.shields.io/badge/tests-228%20passing-brightgreen">
+  <img alt="ci" src="https://img.shields.io/badge/CI-GitHub%20Actions-blue">
+  <img alt="license" src="https://img.shields.io/badge/license-MIT-green">
   <img alt="safety" src="https://img.shields.io/badge/agent-Human--in--the--loop-orange">
 </p>
 
@@ -104,7 +106,7 @@ flowchart TB
 
 ## 🧰 技术栈
 
-Next.js 15 (App Router) · TypeScript · Tailwind CSS 4 · Drizzle ORM + SQLite（生产可切 PostgreSQL）· jose (JWT) · bcryptjs · Zod · Vitest（208 用例 / 27 个测试文件）
+Next.js 15 (App Router) · TypeScript · Tailwind CSS 4 · Drizzle ORM + SQLite（生产可切 PostgreSQL）· jose (JWT) · bcryptjs · Zod · Vitest（228 用例 / 30 个测试文件）
 
 ## 🔩 核心实现
 
@@ -135,7 +137,10 @@ Next.js 15 (App Router) · TypeScript · Tailwind CSS 4 · Drizzle ORM + SQLite�
 | 用户接管 Handover | awaiting / captcha-blocked 均可接管，终态化 + 资源释放，接管后仅可手动投递 |
 | 阻断提醒联动 | captcha/login 阻断自动建站内提醒（查重），复检通过自动关闭 |
 | 匹配权重向量 | 用户自调五维权重（加权点积 + 归一化），非法/缺省维度回落系统默认，输出确定性 |
-| 自带 AI 模型 | 设置页配置 OpenAI 兼容端点（含连接测试），密钥 AES-256-GCM 加密存储 |
+| 自带 AI 模型 | Hermes 式两步配置：粘贴 API Key + 选模型（GLM-5.3 / DeepSeek-V4 / Kimi-K2.6 / Qwen3.8 等国产最新型号），接口地址由模型目录自动派生，密钥 AES-256-GCM 加密存储、只回显掩码，保存前可「测试连接」（错误自动脱敏） |
+| 求职条件中心 | 城市 / 薪资范围（快捷档）/ 经验档位 / 学历 / 岗位关键词一次保存，三处共用：投递策略硬过滤 + 匹配评分 + 雷达搜索条件 |
+| 简历文件化 | 上传即保存原文件（PDF/Word/txt/md），本地路径可查、原文件可打开；AI 解析尽力而为，失败保留原因并可一键重解析，空内容简历不参与失真评分 |
+| 职位雷达 | 按「求职条件」自动扫描公开招聘页 → AI 结构化抽取（URL 须原文命中，防编造）→ 代码层条件过滤 → 三级去重入库；只入库不投递，全程 agent_events 审计；SSRF 防护（DNS 解析级内网拦截 / 重定向逐跳复检 / 大小与超时上限） |
 
 ### V1（MVP）
 
@@ -154,22 +159,53 @@ Next.js 15 (App Router) · TypeScript · Tailwind CSS 4 · Drizzle ORM + SQLite�
 
 | 维度 | 结果 |
 |---|---|
-| 单元 / 集成 / E2E | **208 / 208 passed**（27 个测试文件，Vitest，无需外部服务） |
-| 类型检查 | `tsc --noEmit` 0 错误 |
-| 构建与冒烟 | `npm run build` + 生产模式真实浏览器冒烟通过（[V3 Phase 2 验收](docs/13-v3-phase2-test-report.md)） |
+| 单元 / 集成 / E2E | **228 / 228 passed**（30 个测试文件，Vitest，无需外部服务） |
+| 类型检查 | `tsc --noEmit` 0 错误（`npm run typecheck`） |
+| CI | GitHub Actions：push/PR 自动跑 typecheck + 测试 + 构建（[.github/workflows/ci.yml](.github/workflows/ci.yml)） |
+| 构建与冒烟 | `npm run build` + 生产模式真实浏览器冒烟通过（[V3 Phase 2 验收](docs/13-v3-phase2-test-report.md)、[V3.3 测试报告](docs/16-v3.3-test-report.md)） |
 | 安全审计 | 会话绑定 userId、跨用户操作 7103 拒绝、凭证不落审计——覆盖于测试断言（[V2 测试报告](docs/12-v2-test-report.md)） |
 
-测试覆盖重点：Agent 状态机全部合法/非法转换、授权边界（跨用户 7103）、并发防双提交、AI 失败矩阵逐项降级、防幻觉断言。
+测试覆盖重点：Agent 状态机全部合法/非法转换、授权边界（跨用户 7103）、并发防双提交、AI 失败矩阵逐项降级、防幻觉断言、SSRF 防护与雷达防编造。
 
 ## ⚙️ 环境变量（.env）
 
 | 变量 | 说明 |
 |---|---|
 | `DB_PATH` | SQLite 文件路径，默认 `./data/jobhunter.db` |
-| `JWT_SECRET` | JWT 签名密钥（生产必须更换） |
+| `JWT_SECRET` | JWT 签名密钥；**生产必填**（≥32 位随机串，缺失/示例值会拒绝签发会话），本地开发可不配 |
+| `DEMO_PASSWORD` | 演示账号密码（`npm run db:seed` 用），默认 `demo12345` |
 | `AI_PROVIDER` | `mock`（默认，离线）或 `openai`（OpenAI 兼容端点） |
 | `AI_DAILY_LIMIT` | 单用户每日 AI 调用上限，默认 200 |
-| `AI_OPENAI_BASE_URL` / `AI_OPENAI_API_KEY` / `AI_OPENAI_MODEL` | 接入 GLM/DeepSeek/Qwen 等兼容 API |
+| `AI_OPENAI_BASE_URL` / `AI_OPENAI_API_KEY` / `AI_OPENAI_MODEL` | 全局兜底模型配置；用户在设置页自配后优先生效 |
+| `AI_KEY_MASTER_SECRET` | 加密用户 API Key 的主密钥；生产必须显式配置（未配置时从 JWT_SECRET 派生，仅限本地） |
+| `AGENT_DRIVER` | 投递 Agent 驱动，默认 `mock` |
+
+## 🚢 部署
+
+```bash
+docker build -t jobhunter .
+docker run -p 3000:3000 \
+  -e JWT_SECRET=$(openssl rand -hex 32) \
+  -e AI_KEY_MASTER_SECRET=$(openssl rand -hex 32) \
+  -v jobhunter-data:/app/data \
+  jobhunter
+```
+
+- 生产（HTTPS）下登录 Cookie 自动带 `secure` 标志；**必须走 HTTPS**，否则浏览器会丢弃 Cookie
+- 探活端点：`GET /api/v1/health`（返回进程与数据库连通性）
+- 数据落盘在 `/app/data`（SQLite），用卷挂载持久化
+> Dockerfile 为部署起点，未在云端逐环境实测；better-sqlite3 需要原生编译工具链（镜像已含）。
+
+## ⚠️ 已知风险与限制
+
+- 依赖审计：`next 15.5.x` 依赖链中的 `postcss` 存在 3 个已知漏洞（构建期 CSS 处理，非运行时暴露面）；修复需升级 Next 16（breaking），暂列入待办
+- SQLite 单文件数据库适合个人/演示规模；多实例水平扩展需先迁移 PostgreSQL（架构已预留）
+- 投递 Agent 的异步任务为进程内队列，重启后未完成任务标记失败；生产化可换 BullMQ（接口已预留）
+- 职位雷达依赖目标站点反爬策略，站点不可抓时任务明确报因（不会静默产出假数据）
+
+## 📄 License
+
+[MIT](LICENSE)
 
 ## 📚 文档
 
@@ -187,3 +223,5 @@ Next.js 15 (App Router) · TypeScript · Tailwind CSS 4 · Drizzle ORM + SQLite�
 - [12 V2 测试报告](docs/12-v2-test-report.md)
 - [13 V3 Phase 2 验收报告](docs/13-v3-phase2-test-report.md)
 - [14 架构与流程图](docs/14-架构与流程图.md)
+- [15 竞品分析 FRESUME](docs/15-竞品分析-FRESUME.md)
+- [16 V3.3 测试报告](docs/16-v3.3-test-report.md)

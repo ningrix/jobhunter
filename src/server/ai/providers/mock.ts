@@ -433,7 +433,20 @@ function mockTailorResume(input: {
 
   // 措辞建议：复用 optimize 分析器（其建议仅基于原文事实，满足「不引入新事实」约束）
   const optimize = mockOptimizeResume({ content: resume, jobTitle: job.title });
-  const wordingSuggestions = optimize.suggestions.filter((s) => s.section !== "skills" || true);
+  const matchedCovs = keywordCoverage.filter(
+    (c): c is KeywordCoverage & { status: "matched" } => c.status === "matched",
+  );
+  const partialCovs = keywordCoverage.filter(
+    (c): c is KeywordCoverage & { status: "partial" } => c.status === "partial",
+  );
+  const wordingSuggestions = optimize.suggestions.map((s) => {
+    // 溯源 evidence：优先选在 before/after 文本中实际出现的关键词，否则回退首个命中/相近关键词
+    const text = (s.before + "\n" + s.after).toLowerCase();
+    const inText = (list: typeof matchedCovs | typeof partialCovs) =>
+      list.find((c) => text.includes(c.keyword.toLowerCase()));
+    const cov = inText(matchedCovs) ?? inText(partialCovs) ?? matchedCovs[0] ?? partialCovs[0];
+    return cov ? { ...s, evidence: { keyword: cov.keyword, status: cov.status } } : s;
+  });
 
   return { keywordCoverage, gapAnalysis, reorderSuggestions, wordingSuggestions };
 }

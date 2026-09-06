@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { Download, Save, Sparkles, Target } from "lucide-react";
+import { Download, RotateCcw, Save, Sparkles, Target } from "lucide-react";
 import { api, waitForTask } from "@/lib/client";
 import { ResumePreview } from "@/components/resume/ResumePreview";
 import { RESUME_TEMPLATE_LIST } from "@/components/resume/templates";
@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScoreRing } from "@/components/ui/score-ring";
 import { Loading } from "@/components/ui/spinner";
 import { inputBase } from "@/components/ui/field";
+import { diffChars, type DiffSegment } from "@/lib/text-diff";
 import type { ResumeContent, ResumeStyle, ResumeTailorResult } from "@/shared/types";
 import { DEFAULT_RESUME_STYLE } from "@/shared/types";
 
@@ -45,6 +46,14 @@ interface EditSuggestion {
   reason: string;
 }
 
+interface FileInfo {
+  fileName: string;
+  filePath: string;
+  fileId: string;
+  parseStatus: "pending" | "done" | "failed";
+  parseError: string | null;
+}
+
 const GAP_CATEGORY_LABEL: Record<string, string> = {
   presentation: "展示优化",
   weak_evidence: "证据薄弱",
@@ -64,6 +73,7 @@ export default function ResumeDetailPage() {
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState("");
+  const [fileInfo, setFileInfo] = useState<FileInfo | null>(null);
 
   // AI 建议逐条决策状态（V3.1 B4）：accepted / rejected / edited-after
   const [suggestionState, setSuggestionState] = useState<
@@ -99,6 +109,33 @@ export default function ResumeDetailPage() {
     }>(`/resumes/${id}`);
     setVersions(d.versions);
     pick(d.versions[0], d.resume.style ?? undefined);
+    api<Record<string, FileInfo>>("/resumes/file-infos")
+      .then((m) => setFileInfo(m[id as string] ?? null))
+      .catch(() => setFileInfo(null));
+  }
+
+  async function reparse() {
+    setBusy("reparse");
+    setMsg("");
+    try {
+      const r = await api<{ status: "pending" | "failed"; taskId?: string; error?: string }>(
+        `/resumes/${id}/reparse`,
+        { method: "POST" },
+      );
+      if (r.status === "pending" && r.taskId) {
+        setMsg("重新解析中…");
+        await waitForTask(r.taskId, 60000).catch(() => undefined);
+        await load();
+        setMsg("重新解析已结束，可查看最新状态");
+      } else {
+        setMsg(`重新解析失败：${r.error ?? "未知原因"}`);
+        await load();
+      }
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "重新解析失败");
+    } finally {
+      setBusy("");
+    }
   }
 
   useEffect(() => {
@@ -294,6 +331,45 @@ export default function ResumeDetailPage() {
         {msg && <span className="text-sm text-t2">{msg}</span>}
       </div>
 
+      {/* Stage B：上传文件信息条（本地路径/打开原文件/解析状态/重新解析） */}
+      {fileInfo && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-xl border border-border bg-surface-2 px-4 py-3 text-[12.5px] text-t2 print-hidden">
+          <Badge
+            tone={
+              fileInfo.parseStatus === "done" ? "success" : fileInfo.parseStatus === "pending" ? "warn" : "danger"
+            }
+          >
+            {fileInfo.parseStatus === "done"
+              ? "已解析"
+              : fileInfo.parseStatus === "pending"
+                ? "解析中"
+                : "解析失败"}
+          </Badge>
+          <span className="min-w-0 flex-1 truncate" title={fileInfo.filePath}>
+            {fileInfo.fileName} · 本地 {fileInfo.filePath}
+          </span>
+          <a
+            href={`/api/v1/files/${fileInfo.fileId}`}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 text-primary hover:underline"
+          >
+            <Download size={13} /> 打开原文件
+          </a>
+          <Button variant="ghost" size="sm" onClick={reparse} disabled={busy !== ""}>
+            <RotateCcw size={13} /> 重新解析
+          </Button>
+          {fileInfo.parseStatus === "failed" && fileInfo.parseError && (
+            <span className="w-full text-xs text-danger">失败原因：{fileInfo.parseError}</span>
+          )}
+          {fileInfo.parseStatus !== "done" && (
+            <span className="w-full text-xs text-t3">
+              未完成结构化解析：匹配评分与 AI 优化暂不可用；解析成功后自动解锁。
+            </span>
+          )}
+        </div>
+      )}
+
       {/* AI 诊断 + 逐条建议（打印隐藏） */}
       {analysis && (
         <Card className="p-6 print-hidden">
@@ -327,25 +403,36 @@ export default function ResumeDetailPage() {
                     <Badge tone="primary" className="h-5 px-2 text-[10.5px]">
                       {s.section}
                     </Badge>
-                    {s.before && <p className="mt-1.5 text-t3 line-through">{s.before}</p>}
+                    {s.before && (
+                      <div className="mt-2 rounded-[10px] bg-surface p-2.5">
+                        <p className="mb-1 text-[10.5px] font-medium text-t3">原文</p>
+                        <DiffText before={s.before} after={st?.after ?? s.after} />
+                      </div>
+                    )}
                     {st?.decision === "accepted" ? (
                       <p className="mt-1 text-success">已应用：{st.after}</p>
                     ) : st?.decision === "rejected" ? (
                       <p className="mt-1 text-t3">已拒绝</p>
                     ) : (
                       <>
-                        <textarea
-                          className={`mt-1.5 w-full rounded-[10px] px-2.5 py-1.5 text-sm text-t1 outline-none transition-colors focus:border-primary ${"border border-border-strong bg-surface"}`}
-                          rows={2}
-                          value={st?.after ?? s.after}
-                          onChange={(e) =>
-                            setSuggestionState((prev) => ({
-                              ...prev,
-                              [idx]: { decision: "accepted", after: e.target.value },
-                            }))
-                          }
-                        />
-                        <p className="mt-1 text-xs text-t3">{s.reason}</p>
+                        <div className="mt-2 rounded-[10px] border border-border bg-surface p-2.5">
+                          <p className="mb-1 text-[10.5px] font-medium text-t3">改写后（可直接编辑）</p>
+                          <textarea
+                            className="w-full bg-transparent text-sm text-t1 outline-none"
+                            rows={2}
+                            value={st?.after ?? s.after}
+                            onChange={(e) =>
+                              setSuggestionState((prev) => ({
+                                ...prev,
+                                [idx]: { decision: "accepted", after: e.target.value },
+                              }))
+                            }
+                          />
+                        </div>
+                        <div className="mt-1.5 rounded-[10px] bg-primary-soft p-2.5">
+                          <p className="mb-0.5 text-[10.5px] font-medium text-t3">依据</p>
+                          <p className="text-xs text-t2">{s.reason}</p>
+                        </div>
                         <div className="mt-2 flex gap-2">
                           <Button variant="success" size="sm" onClick={() => applySuggestion(idx, "accepted", st?.after)}>
                             接受
@@ -617,34 +704,56 @@ export default function ResumeDetailPage() {
 
                 {tailor.wordingSuggestions.length > 0 && (
                   <div>
-                    <p className="mb-1.5 text-[12.5px] font-semibold text-t1">措辞建议（after 仅改写原文，接受后写入预览）</p>
+                    <p className="mb-1.5 text-[12.5px] font-semibold text-t1">措辞建议（原文 → 依据 → 改写后，仅改写原文不新增事实）</p>
                     <div className="space-y-2">
                       {tailor.wordingSuggestions.map((s, i) => {
                         const st = tailorEditState[i];
                         return (
                           <div key={i} className="rounded-[10px] bg-surface-2 p-2.5">
-                            <Badge tone="primary" className="h-5 px-2 text-[10.5px]">
-                              {s.section}
-                            </Badge>
-                            {s.before && <p className="mt-1 text-xs text-t3 line-through">{s.before}</p>}
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <Badge tone="primary" className="h-5 px-2 text-[10.5px]">
+                                {s.section}
+                              </Badge>
+                              {s.evidence && (
+                                <span
+                                  title={`依据 JD 关键词「${s.evidence.keyword}」的覆盖状态：${s.evidence.status === "matched" ? "已命中" : "相近命中"}`}
+                                >
+                                  <Badge tone={s.evidence.status === "matched" ? "success" : "warn"} className="h-5 px-2 text-[10.5px]">
+                                    依据：{s.evidence.keyword} {s.evidence.status === "matched" ? "✓" : "△"}
+                                  </Badge>
+                                </span>
+                              )}
+                            </div>
+                            {s.before && (
+                              <div className="mt-2 rounded-[10px] bg-surface p-2.5">
+                                <p className="mb-1 text-[10.5px] font-medium text-t3">原文</p>
+                                <DiffText before={s.before} after={st?.after ?? s.after} />
+                              </div>
+                            )}
                             {st?.decision === "accepted" ? (
                               <p className="mt-1 text-xs text-success">已应用：{st.after}</p>
                             ) : st?.decision === "rejected" ? (
                               <p className="mt-1 text-xs text-t3">已拒绝</p>
                             ) : (
                               <>
-                                <textarea
-                                  className="mt-1 w-full rounded-[10px] border border-border-strong bg-surface px-2.5 py-1.5 text-xs text-t1 outline-none transition-colors focus:border-primary"
-                                  rows={2}
-                                  value={st?.after ?? s.after}
-                                  onChange={(e) =>
-                                    setTailorEditState((prev) => ({
-                                      ...prev,
-                                      [i]: { decision: "accepted", after: e.target.value },
-                                    }))
-                                  }
-                                />
-                                <p className="mt-0.5 text-xs text-t3">{s.reason}</p>
+                                <div className="mt-2 rounded-[10px] border border-border bg-surface p-2.5">
+                                  <p className="mb-1 text-[10.5px] font-medium text-t3">改写后（可直接编辑）</p>
+                                  <textarea
+                                    className="w-full bg-transparent text-xs text-t1 outline-none"
+                                    rows={2}
+                                    value={st?.after ?? s.after}
+                                    onChange={(e) =>
+                                      setTailorEditState((prev) => ({
+                                        ...prev,
+                                        [i]: { decision: "accepted", after: e.target.value },
+                                      }))
+                                    }
+                                  />
+                                </div>
+                                <div className="mt-1.5 rounded-[10px] bg-primary-soft p-2.5">
+                                  <p className="mb-0.5 text-[10.5px] font-medium text-t3">依据</p>
+                                  <p className="text-xs text-t2">{s.reason}</p>
+                                </div>
                                 <div className="mt-1.5 flex gap-2">
                                   <Button
                                     variant="success"
@@ -699,6 +808,28 @@ function Field({ label, value, onChange }: { label: string; value?: string; onCh
       <span className="mb-1 block text-xs font-medium text-t3">{label}</span>
       <input className={`${inputBase} h-9 px-2.5`} value={value ?? ""} onChange={(e) => onChange(e.target.value)} />
     </label>
+  );
+}
+
+/** V3.4 溯源对比：before→after 的字符级差异渲染（删除划线红、新增绿） */
+function DiffText({ before, after }: { before: string; after: string }) {
+  const segments: DiffSegment[] = diffChars(before, after);
+  return (
+    <p className="text-xs leading-relaxed text-t2">
+      {segments.map((seg, i) =>
+        seg.type === "same" ? (
+          <span key={i}>{seg.text}</span>
+        ) : seg.type === "del" ? (
+          <span key={i} className="text-danger line-through">
+            {seg.text}
+          </span>
+        ) : (
+          <span key={i} className="font-medium text-success">
+            {seg.text}
+          </span>
+        ),
+      )}
+    </p>
   );
 }
 

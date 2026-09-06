@@ -1,9 +1,9 @@
-import { RECOMMENDED_THRESHOLD, STRONG_THRESHOLD, type RecommendBucket } from "@/shared/types";
+import { RECOMMENDED_THRESHOLD, STRONG_THRESHOLD, isResumeContentEmpty, type RecommendBucket, type ResumeContent } from "@/shared/types";
 import { AppError, ErrorCode } from "@/shared/errors";
 import type { JobRow } from "./job-service";
 import { listJobs } from "./job-service";
 import { listApplications } from "./application-service";
-import { primaryResumeOf } from "./resume-service";
+import { getLatestVersion, primaryResumeOf } from "./resume-service";
 import { computeMatch, listMatches } from "./match-service";
 
 export interface RecommendationItem {
@@ -38,6 +38,15 @@ export async function refreshRecommendations(
     const primary = await primaryResumeOf(userId);
     if (!primary) throw new AppError(ErrorCode.RESUME_NOT_FOUND, "请先创建简历再获取推荐");
     targetResumeId = primary.id;
+  }
+
+  // Stage B：空内容简历（未解析/解析失败）会产出失真分数，显式引导而不是硬算
+  const { version } = await getLatestVersion(userId, targetResumeId);
+  if (isResumeContentEmpty(version.content as ResumeContent)) {
+    throw new AppError(
+      ErrorCode.VALIDATION,
+      "这份简历还没有结构化内容：请先在简历工作台完成解析或填写，再获取推荐",
+    );
   }
 
   const activeJobs: JobRow[] = await listJobs(userId, { status: "active" });

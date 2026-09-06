@@ -2,7 +2,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { jobMatches, jobs } from "@/db/schema";
 import { AppError, ErrorCode } from "@/shared/errors";
-import type { ResumeContent } from "@/shared/types";
+import { isResumeContentEmpty, type ResumeContent } from "@/shared/types";
 import { getJob } from "./job-service";
 import { getLatestVersion } from "./resume-service";
 import { getProfile } from "./user-service";
@@ -18,6 +18,12 @@ export async function computeMatch(
   const { job } = await getJob(userId, input.jobId);
   const { version } = await getLatestVersion(userId, input.resumeId);
   const content = version.content as ResumeContent;
+  if (isResumeContentEmpty(content)) {
+    throw new AppError(
+      ErrorCode.VALIDATION,
+      "该简历还没有结构化内容：请先在简历工作台完成解析或填写后再计算匹配",
+    );
+  }
   const profile = await getProfile(userId);
 
   const rule = scoreMatch({

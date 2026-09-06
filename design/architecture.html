@@ -287,30 +287,35 @@ flowchart TB
 
 <script type="text/plain" id="d8" data-title="8. Agent 投递状态机">
 stateDiagram-v2
-    [*] --> running: POST /agent/runs
+    [*] --> running: POST /agent/runs（jobId+resumeId）
+
     state running {
-        [*] --> open_page
-        open_page --> login_wall_stop: kind=login_wall 即停
+        [*] --> open_page: BrowserDriver.open
+        open_page --> login_wall_stop: kind=login_wall（如实上报即停）
         open_page --> job_detail
         job_detail --> click_apply
         click_apply --> captcha_blocked: kind=captcha
         click_apply --> apply_form
-        apply_form --> policy_check
-        policy_check --> policy_reject: REJECT 硬性不满足
-        policy_check --> need_confirm: 软性 REQUIRE_USER_CONFIRMATION
-        policy_check --> content_gen: ALLOW
+        apply_form --> policy_check: 读表单+JD
+        policy_check --> policy_reject: REJECT（硬性不满足）
+        policy_check --> need_confirm: 软性规则<br/>REQUIRE_USER_CONFIRMATION
+        policy_check --> content_gen: ALLOW（白名单/全部满足）
         need_confirm --> content_gen
-        content_gen --> fill_form: AI 打招呼语失败降级模板
-        fill_form --> wait_user_confirm: confirm 前不提交
+        content_gen --> fill_form: 打招呼语<br/>useAI=true 走 AI，失败降级 template
+        fill_form --> wait_user_confirm: 表单就绪（confirm 前不提交）
     }
+
     wait_user_confirm --> awaiting_confirmation
-    awaiting_confirmation --> submitted: 用户确认提交成功
+
+    awaiting_confirmation --> submitted: 用户确认 → driver.submit → 成功
     awaiting_confirmation --> failed: 提交失败
     awaiting_confirmation --> rejected_by_user: 用户拒绝
-    awaiting_confirmation --> handed_over_to_user: 接管（不可逆）
-    captcha_blocked --> awaiting_captcha_check: blocked_reminder_created
-    awaiting_captcha_check --> running: 复检通过（≤2 次）
+    awaiting_confirmation --> handed_over_to_user: 我自己来投（handover，不可逆）
+
+    captcha_blocked --> awaiting_captcha_check: blocked_reminder_created<br/>自动创建待处理提醒
+    awaiting_captcha_check --> running: 用户在平台完成验证后<br/>POST /captcha/resolved 复检（≤2 次，sticky 未通过不重试）
     awaiting_captcha_check --> handed_over_to_user: 接管处理
+
     login_wall_stop --> handed_over_to_user: 需登录提醒 + 接管
     submitted --> [*]
     failed --> [*]
@@ -318,15 +323,16 @@ stateDiagram-v2
     handed_over_to_user --> [*]
 </script>
 
-<script type="module">
-  const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/esm/min/mermaid.min.js")).default;
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>
   mermaid.initialize({ startOnLoad: false, securityLevel: "loose", theme: "base", themeVariables: {
     primaryColor: "#edeefe", primaryTextColor: "#15171d", primaryBorderColor: "#d8ddfc",
     lineColor: "#98a0b0", secondaryColor: "#f1f3f7", tertiaryColor: "#f6f7fa",
     fontFamily: 'Inter, "PingFang SC", "Microsoft YaHei", sans-serif', fontSize: "14px",
   }});
 
-  const srcs = [...document.querySelectorAll('script[type="text/plain"]')];
+  (async () => {
+  const srcs = [...document.querySelectorAll('script[type="text/plain"]')].sort((a, b) => parseInt(a.id.slice(1)) - parseInt(b.id.slice(1)));
   const nav = document.getElementById("nav");
   const content = document.getElementById("content");
 
@@ -371,6 +377,7 @@ stateDiagram-v2
     });
   }, { rootMargin: "-20% 0px -70% 0px" });
   document.querySelectorAll("section").forEach((x) => obs.observe(x));
+  })();
 </script>
 </body>
 </html>

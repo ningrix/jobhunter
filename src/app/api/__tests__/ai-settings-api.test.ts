@@ -27,11 +27,12 @@ describe("AI settings API", () => {
     vi.unstubAllGlobals();
   });
 
-  it("未配置时 GET 返回 configured:false", async () => {
+  it("未配置时 GET 返回 configured:false 且 enabled 默认 true（防首次保存即停用）", async () => {
     const res = await callRoute(GET, { method: "GET", url: "/api/v1/settings/ai", token });
     const data = expectOk(res.json);
     expect(data.configured).toBe(false);
     expect(data.apiKeyMasked).toBeNull();
+    expect(data.enabled).toBe(true);
   });
 
   it("首次 PUT 不带 apiKey 返回校验错误", async () => {

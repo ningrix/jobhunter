@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Download, Lock, Sparkles } from "lucide-react";
-import { api } from "@/lib/client";
+import { Download, Lock, Radar, Sparkles } from "lucide-react";
+import { api, waitForTask } from "@/lib/client";
 import { Modal } from "@/components/modal";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Field, Input, Textarea } from "@/components/ui/field";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -53,6 +53,25 @@ interface ResumeOption {
   isPrimary: boolean;
 }
 
+interface RadarSiteRun {
+  siteId: string;
+  siteName: string;
+  imported: number;
+  duplicates: number;
+  filtered: number;
+  error?: string;
+}
+
+interface RadarRun {
+  id: string;
+  status: string;
+  output: { summary?: { importedTotal?: number; duplicatesTotal?: number; sites?: RadarSiteRun[] } } | null;
+  error: string | null;
+  provider: string | null;
+  model: string | null;
+  createdAt: string;
+}
+
 const STATUS_TONE: Record<string, { text: string; tone: "success" | "primary" | "warn" | "danger" }> = {
   connected: { text: "已连接", tone: "success" },
   available: { text: "可用", tone: "primary" },
@@ -96,6 +115,11 @@ export default function JobSourcesPage() {
   const [showGaps, setShowGaps] = useState(false);
   const [gaps, setGaps] = useState<{ dimension: string; detail: string }[]>([]);
 
+  // —— 职位雷达（V3.3） ——
+  const [radarRuns, setRadarRuns] = useState<RadarRun[]>([]);
+  const [radarBusy, setRadarBusy] = useState(false);
+  const [radarMsg, setRadarMsg] = useState("");
+
   async function load() {
     try {
       const [d, rs] = await Promise.all([
@@ -105,6 +129,9 @@ export default function JobSourcesPage() {
       setSources(d.sources);
       setHealth(d.health);
       setResumes(rs);
+      api<RadarRun[]>("/radar/runs")
+        .then(setRadarRuns)
+        .catch(() => undefined);
     } catch (e) {
       setError(e instanceof Error ? e.message : "加载失败");
     }
@@ -182,12 +209,77 @@ export default function JobSourcesPage() {
     }
   }
 
+  async function runRadar() {
+    setRadarBusy(true);
+    setRadarMsg("扫描中：抓取公开招聘页 → AI 结构化抽取 → 去重入库…");
+    try {
+      const { taskId } = await api<{ taskId: string }>("/radar/run", { method: "POST" });
+      await waitForTask(taskId, 120_000);
+      const runs = await api<RadarRun[]>("/radar/runs");
+      setRadarRuns(runs);
+      const s = runs[0]?.output?.summary;
+      setRadarMsg(
+        s
+          ? `扫描完成：新入库 ${s.importedTotal ?? 0} 个职位，重复跳过 ${s.duplicatesTotal ?? 0} 个（结果见职位中心，来源=职位雷达）`
+          : "扫描完成",
+      );
+    } catch (e) {
+      setRadarMsg(e instanceof Error ? e.message : "扫描失败");
+    } finally {
+      setRadarBusy(false);
+    }
+  }
+
   return (
     <div className="space-y-5">
       <PageHeader
         title="职位来源"
         desc="点击任意来源即可把职位带入 JobHunter；平台没有公开 API 时由你复制 URL + JD，AI 负责理解、分析与管理"
       />
+
+      <Card className="p-5">
+        <CardTitle
+          right={
+            <Button size="sm" onClick={runRadar} disabled={radarBusy}>
+              <Radar size={13} strokeWidth={1.8} className={radarBusy ? "animate-spin" : ""} />
+              {radarBusy ? "扫描中…" : "立即扫描"}
+            </Button>
+          }
+        >
+          职位雷达
+        </CardTitle>
+        <p className="text-xs leading-relaxed text-t3">
+          按「设置 → 求职条件」自动扫描公开招聘页（v1：猎聘校招企业列表），AI 结构化抽取 +
+          三级去重后入库；只入库、不投递，全程审计。需要先在设置页配置自备大模型。
+        </p>
+        {radarMsg && <p className="mt-2 text-xs text-t2">{radarMsg}</p>}
+        {radarRuns.length > 0 && (
+          <div className="mt-3 space-y-1.5">
+            {radarRuns.slice(0, 5).map((r) => {
+              const s = r.output?.summary;
+              return (
+                <div key={r.id} className="flex flex-wrap items-center gap-2 text-xs text-t3">
+                  <Badge
+                    tone={r.status === "succeeded" ? "success" : r.status === "failed" ? "danger" : "warn"}
+                  >
+                    {r.status === "succeeded" ? "完成" : r.status === "failed" ? "失败" : "进行中"}
+                  </Badge>
+                  <span>{new Date(r.createdAt).toLocaleString("zh-CN")}</span>
+                  {s && (
+                    <span>
+                      入库 {s.importedTotal ?? 0} · 重复 {s.duplicatesTotal ?? 0}
+                      {(s.sites ?? []).map((x) =>
+                        x.error ? ` · ${x.siteName}：${x.error.slice(0, 40)}` : "",
+                      )}
+                    </span>
+                  )}
+                  {!s && r.error && <span className="text-danger">{r.error.slice(0, 80)}</span>}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-2">
         {sources.map((s) => {

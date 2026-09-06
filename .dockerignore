@@ -14,3 +14,9 @@ output/
 .playwright-cli/
 .zcode/
 .research/
+.github/
+docs/
+design/
+Dockerfile
+.dockerignore
+.gitignore

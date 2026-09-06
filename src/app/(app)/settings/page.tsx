@@ -10,6 +10,56 @@ import { Field, Input, Select } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { AI_MODELS, AI_MODEL_GROUPS } from "@/shared/ai-models";
 
+/** Stage A：求职条件（雷达过滤 / 投递策略硬过滤 / 匹配评分 三处共用的具体值） */
+interface ProfileView {
+  expectedPosition: string | null;
+  expectedCity: string | null;
+  salaryMin: number | null;
+  salaryMax: number | null;
+  experienceYears: number | null;
+  education: string | null;
+}
+
+interface PolicyView {
+  rules: {
+    cities?: string[];
+    positions?: string[];
+    minSalary?: number;
+    education?: string;
+    maxExperienceYears?: number;
+    [key: string]: unknown;
+  } | null;
+}
+
+interface Conditions {
+  cities: string;
+  positions: string;
+  salaryMin: number | "";
+  salaryMax: number | "";
+  experience: "" | "0" | "0.25" | "0.5" | "1" | "2" | "3" | "5";
+  education: "" | "大专" | "本科" | "硕士" | "博士";
+}
+
+const EXPERIENCE_TIERS = [
+  { value: "0", label: "无经验（应届/实习可）" },
+  { value: "0.25", label: "3 个月" },
+  { value: "0.5", label: "6 个月" },
+  { value: "1", label: "1 年" },
+  { value: "2", label: "2 年" },
+  { value: "3", label: "3 年" },
+  { value: "5", label: "5 年" },
+] as const;
+
+const SALARY_CHIPS = [3, 5, 8, 10, 15, 20];
+
+function splitList(s: string): string[] {
+  return s
+    .split(/[、,，;；\s]+/)
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .slice(0, 20);
+}
+
 /** Stage A-5：AI 设置页 —— 像 Hermes 一样：只粘 API Key + 选模型名，URL 由模型自动派生 */
 interface AiSettingsView {
   configured: boolean;
@@ -30,13 +80,22 @@ export default function SettingsPage() {
   const [model, setModel] = useState(AI_MODELS[0].id);
   const [enabled, setEnabled] = useState(true);
   const [testResult, setTestResult] = useState<{ ok: boolean; text: string } | null>(null);
+  const [cond, setCond] = useState<Conditions>({
+    cities: "",
+    positions: "",
+    salaryMin: "",
+    salaryMax: "",
+    experience: "",
+    education: "",
+  });
+  const [condSaving, setCondSaving] = useState(false);
 
   const load = useCallback(async () => {
     try {
       const data = await api<AiSettingsView>("/settings/ai");
       setView(data);
       if (data.model) setModel(data.model);
-      setEnabled(data.enabled);
+      setEnabled(data.configured ? data.enabled : true);
     } catch (e) {
       toast(e instanceof Error ? e.message : "加载设置失败", "error");
     } finally {
@@ -47,6 +106,68 @@ export default function SettingsPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // 求职条件：合并读取 profile（喂匹配评分）+ 投递策略（硬过滤与雷达条件）
+  useEffect(() => {
+    void (async () => {
+      try {
+        const [prof, pol] = await Promise.all([
+          api<ProfileView>("/users/me/profile"),
+          api<PolicyView | null>("/policies/me").catch(() => null),
+        ]);
+        setCond({
+          cities: pol?.rules?.cities?.join("、") || prof.expectedCity || "",
+          positions: pol?.rules?.positions?.join("、") || prof.expectedPosition || "",
+          salaryMin: pol?.rules?.minSalary ?? prof.salaryMin ?? "",
+          salaryMax: prof.salaryMax ?? "",
+          experience:
+            pol?.rules?.maxExperienceYears != null
+              ? (String(pol.rules.maxExperienceYears) as Conditions["experience"])
+              : "",
+          education: (pol?.rules?.education as Conditions["education"]) || "",
+        });
+      } catch {
+        // 条件读取失败不阻塞设置页
+      }
+    })();
+  }, []);
+
+  async function saveConditions() {
+    setCondSaving(true);
+    try {
+      const cityList = splitList(cond.cities);
+      const posList = splitList(cond.positions);
+      await api("/users/me/profile", {
+        method: "PATCH",
+        body: {
+          expectedCity: cond.cities.trim() || null,
+          expectedPosition: cond.positions.trim() || null,
+          salaryMin: cond.salaryMin === "" ? null : Number(cond.salaryMin),
+          salaryMax: cond.salaryMax === "" ? null : Number(cond.salaryMax),
+          experienceYears: cond.experience === "" ? null : Number(cond.experience),
+          education: cond.education || null,
+        },
+      });
+      const pol = await api<PolicyView | null>("/policies/me").catch(() => null);
+      // upsertPolicy 是整体替换 rules：先取存量合并，避免抹掉白名单/黑名单等字段
+      await api("/policies/me", {
+        method: "PUT",
+        body: {
+          ...(pol?.rules ?? {}),
+          cities: cityList,
+          positions: posList,
+          minSalary: cond.salaryMin === "" ? undefined : Number(cond.salaryMin),
+          education: cond.education || undefined,
+          maxExperienceYears: cond.experience === "" ? undefined : Number(cond.experience),
+        },
+      });
+      toast("求职条件已保存：用于雷达过滤、投递策略与匹配评分");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "保存条件失败", "error");
+    } finally {
+      setCondSaving(false);
+    }
+  }
 
   async function save() {
     if (!model) {
@@ -146,6 +267,101 @@ export default function SettingsPage() {
             打招呼语等全部 AI 能力都会改用你选的大模型。
           </p>
         )}
+      </Card>
+
+      <Card className="p-5">
+        <CardTitle
+          right={<span className="text-[11px] text-t3">雷达过滤 / 投递策略 / 匹配评分 三处共用</span>}
+        >
+          求职条件
+        </CardTitle>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="期望城市" hint="多个用 、 分隔；留空不限">
+            <Input
+              value={cond.cities}
+              onChange={(e) => setCond({ ...cond, cities: e.target.value })}
+              placeholder="上海、苏州、深圳"
+            />
+          </Field>
+          <Field label="期望岗位关键词" hint="匹配职位标题；留空不限">
+            <Input
+              value={cond.positions}
+              onChange={(e) => setCond({ ...cond, positions: e.target.value })}
+              placeholder="运营、电商、技术支持"
+            />
+          </Field>
+          <Field label="期望薪资（K/月）" hint="低于下限的职位被硬过滤；点快捷档填下限">
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                min={0}
+                max={500}
+                value={cond.salaryMin}
+                onChange={(e) =>
+                  setCond({ ...cond, salaryMin: e.target.value === "" ? "" : Number(e.target.value) })
+                }
+                placeholder="最低"
+                className="max-w-[7rem]"
+              />
+              <span className="text-t3">–</span>
+              <Input
+                type="number"
+                min={0}
+                max={500}
+                value={cond.salaryMax}
+                onChange={(e) =>
+                  setCond({ ...cond, salaryMax: e.target.value === "" ? "" : Number(e.target.value) })
+                }
+                placeholder="最高"
+                className="max-w-[7rem]"
+              />
+              <div className="flex flex-wrap gap-1.5">
+                {SALARY_CHIPS.map((k) => (
+                  <button
+                    key={k}
+                    type="button"
+                    onClick={() => setCond({ ...cond, salaryMin: k })}
+                    className="rounded-full border border-border-strong px-2.5 py-1 text-[11px] text-t2 transition hover:border-primary hover:text-primary"
+                  >
+                    {k}k
+                  </button>
+                ))}
+              </div>
+            </div>
+          </Field>
+          <div className="grid gap-4">
+            <Field label="经验档位" hint="可接受职位的最高经验要求">
+              <Select
+                value={cond.experience}
+                onChange={(e) => setCond({ ...cond, experience: e.target.value as Conditions["experience"] })}
+              >
+                <option value="">不限</option>
+                {EXPERIENCE_TIERS.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="最高学历" hint="职位要求不得高于此学历">
+              <Select
+                value={cond.education}
+                onChange={(e) => setCond({ ...cond, education: e.target.value as Conditions["education"] })}
+              >
+                <option value="">不限</option>
+                <option value="大专">大专</option>
+                <option value="本科">本科</option>
+                <option value="硕士">硕士</option>
+                <option value="博士">博士</option>
+              </Select>
+            </Field>
+          </div>
+        </div>
+        <div className="mt-4">
+          <Button onClick={saveConditions} disabled={condSaving}>
+            {condSaving ? "保存中…" : "保存求职条件"}
+          </Button>
+        </div>
       </Card>
 
       <Card className="p-5">

@@ -47,6 +47,17 @@ export function emptyResumeContent(): ResumeContent {
   return { basics: {}, summary: "", skills: [], experience: [], education: [], projects: [] };
 }
 
+/** Stage B：未解析/解析失败的简历内容为空——匹配与 AI 场景对空内容应显式拒绝而非给出失真分数 */
+export function isResumeContentEmpty(c: ResumeContent): boolean {
+  return (
+    !c.skills?.length &&
+    !c.experience?.length &&
+    !c.education?.length &&
+    !c.projects?.length &&
+    !c.summary
+  );
+}
+
 // —— 职位 ——
 
 export interface JobSkill {
@@ -165,7 +176,8 @@ export type TaskType =
   | "parse_jd"
   | "optimize_resume"
   | "match_analysis"
-  | "tailor_resume";
+  | "tailor_resume"
+  | "radar_search"; // V3.3：职位雷达（抓公开页 → AI 结构化抽取 → 去重入库）
 
 export type TaskStatus = "queued" | "running" | "succeeded" | "failed";
 
@@ -216,12 +228,26 @@ export interface TailorGap {
   suggestion: string;
 }
 
+/** V3.4 溯源：措辞建议关联的 JD 关键词证据（missing 按禁编造约束不允许出现） */
+export interface WordingEvidence {
+  keyword: string;
+  status: "matched" | "partial";
+}
+
+export interface ResumeWordingSuggestion {
+  section: string;
+  before: string;
+  after: string;
+  reason: string;
+  evidence?: WordingEvidence;
+}
+
 export interface ResumeTailorResult {
   keywordCoverage: KeywordCoverage[];
   gapAnalysis: TailorGap[];
   reorderSuggestions: string[];
   /** 措辞建议：after 必须是 before 的改写，不得引入原文之外的新公司/技能/数字 */
-  wordingSuggestions: { section: string; before: string; after: string; reason: string }[];
+  wordingSuggestions: ResumeWordingSuggestion[];
 }
 
 // ———— V2：统一职位模型（仅作为外部来源 → createJob 的标准化输入，不持久化） ————
@@ -254,6 +280,9 @@ export type DedupeKind = "NEW" | "EXACT_DUPLICATE" | "POSSIBLE_DUPLICATE";
 
 export type AgentAction =
   | "import" // 来源导入
+  | "radar_fetch" // V3.3：雷达抓取公开列表页
+  | "radar_extract" // V3.3：雷达 AI 结构化抽取
+  | "radar_import" // V3.3：雷达结果入库（含去重/过滤计数）
   | "open_page"
   | "extract_jd"
   | "policy_check"

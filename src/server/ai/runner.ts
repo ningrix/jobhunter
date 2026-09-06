@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { aiTasks, jobMatches, jobs, resumeAnalyses, resumeFiles, resumeVersions } from "@/db/schema";
 import { AppError, ErrorCode } from "@/shared/errors";
+import { markParseFailed } from "@/server/core/resume-service";
 import type {
   JobStructured,
   MatchExplanation,
@@ -103,24 +104,36 @@ type TaskHandler = (
 export const taskHandlers: Record<TaskType, TaskHandler> = {
   parse_resume: async (input, task) => {
     // Prompt 约定：模型直接返回 ResumeContent 本体
-    const { result, meta } = await runAI<ResumeContent>("parse_resume", input, {
-      userId: task.userId,
-      taskId: task.id,
-    });
-    // 上传解析流程：将结构化结果写回版本并标记解析完成
     const resumeId = input.resumeId as string | undefined;
     const versionId = input.versionId as string | undefined;
-    if (resumeId && versionId) {
-      await getDb()
-        .update(resumeVersions)
-        .set({ content: result, source: "upload" })
-        .where(and(eq(resumeVersions.id, versionId), eq(resumeVersions.resumeId, resumeId)));
-      await getDb()
-        .update(resumeFiles)
-        .set({ parseStatus: "done" })
-        .where(eq(resumeFiles.resumeId, resumeId));
+    try {
+      const { result, meta } = await runAI<ResumeContent>("parse_resume", input, {
+        userId: task.userId,
+        taskId: task.id,
+      });
+      // 上传解析流程：将结构化结果写回版本并标记解析完成
+      if (resumeId && versionId) {
+        await getDb()
+          .update(resumeVersions)
+          .set({ content: result, source: "upload" })
+          .where(and(eq(resumeVersions.id, versionId), eq(resumeVersions.resumeId, resumeId)));
+        await getDb()
+          .update(resumeFiles)
+          .set({ parseStatus: "done", parseError: null })
+          .where(eq(resumeFiles.resumeId, resumeId));
+      }
+      return { content: result, provider: meta.provider, model: meta.model };
+    } catch (e) {
+      // Stage B：解析失败落到 resume_files 状态机，前端可见原因（文件与简历保留）
+      if (resumeId && versionId) {
+        await markParseFailed(
+          resumeId,
+          versionId,
+          e instanceof Error ? e.message : String(e),
+        ).catch(() => undefined);
+      }
+      throw e;
     }
-    return { content: result, provider: meta.provider, model: meta.model };
   },
 
   parse_jd: async (input, task) => {
@@ -134,6 +147,14 @@ export const taskHandlers: Record<TaskType, TaskHandler> = {
       await getDb().update(jobs).set({ structured: result }).where(eq(jobs.id, jobId));
     }
     return { structured: result, provider: meta.provider, model: meta.model };
+  },
+
+  // V3.3 职位雷达：safeFetch 公开页 → AI 抽取 → 去重入库（只入库不投递）
+  radar_search: async (input, task) => {
+    if (!task.userId) throw new AppError(ErrorCode.VALIDATION, "雷达任务缺少用户上下文");
+    const { runRadarSearch } = await import("@/server/radar/radar-service");
+    const summary = await runRadarSearch(task.userId, task);
+    return { summary };
   },
 
   optimize_resume: async (input, task) => {
