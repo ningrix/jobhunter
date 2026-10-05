@@ -92,7 +92,7 @@ const IMPORT_STEPS = [
   "找到目标职位",
   "复制职位 URL",
   "复制职位描述（JD）",
-  "粘贴到下面，交给 AI 解析",
+  "粘贴到下面，自动解析",
 ];
 
 export default function JobSourcesPage() {
@@ -211,7 +211,7 @@ export default function JobSourcesPage() {
 
   async function runRadar() {
     setRadarBusy(true);
-    setRadarMsg("扫描中：抓取公开招聘页 → AI 结构化抽取 → 去重入库…");
+    setRadarMsg("扫描中：抓取公开招聘页 → 结构化抽取 → 去重入库…");
     try {
       const { taskId } = await api<{ taskId: string }>("/radar/run", { method: "POST" });
       await waitForTask(taskId, 120_000);
@@ -234,7 +234,7 @@ export default function JobSourcesPage() {
     <div className="space-y-5">
       <PageHeader
         title="职位来源"
-        desc="点击任意来源即可把职位带入 JobHunter；平台没有公开 API 时由你复制 URL + JD，AI 负责理解、分析与管理"
+        desc="点击任意来源即可把职位带入 JobHunter；平台没有公开 API 时由你复制 URL + JD，系统负责理解、分析与管理"
       />
 
       <Card className="p-5">
@@ -249,7 +249,7 @@ export default function JobSourcesPage() {
           职位雷达
         </CardTitle>
         <p className="text-xs leading-relaxed text-t3">
-          按「设置 → 求职条件」自动扫描公开招聘页（v1：猎聘校招企业列表），AI 结构化抽取 +
+          按「设置 → 求职条件」自动扫描公开招聘页（v1：猎聘校招企业列表），结构化抽取 +
           三级去重后入库；只入库、不投递，全程审计。需要先在设置页配置自备大模型。
         </p>
         {radarMsg && <p className="mt-2 text-xs text-t2">{radarMsg}</p>}
@@ -410,7 +410,7 @@ export default function JobSourcesPage() {
               )}
               <Button onClick={doImport} disabled={busy} className="mt-4 w-full" size="lg">
                 <Sparkles size={14} strokeWidth={1.8} />
-                {busy ? "AI 解析中…" : "AI 解析职位"}
+                {busy ? "解析中…" : "解析职位"}
               </Button>
             </>
           ) : (

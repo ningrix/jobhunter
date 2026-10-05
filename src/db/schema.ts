@@ -414,6 +414,9 @@ export const aiTasks = sqliteTable(
     promptTokens: integer("prompt_tokens"),
     completionTokens: integer("completion_tokens"),
     durationMs: integer("duration_ms"),
+    /** V4.0 任务运行时：0-100 进度与当前阶段文案（SSE 推流 + 轮询兜底共用） */
+    progress: integer("progress"),
+    phase: text("phase"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

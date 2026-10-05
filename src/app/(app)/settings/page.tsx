@@ -187,7 +187,7 @@ export default function SettingsPage() {
       setModel(data.model || model);
       setApiKey("");
       setTestResult(null);
-      toast(data.enabled ? "已保存，AI 功能将使用你自备的模型" : "已保存；当前为停用状态，AI 功能使用系统默认");
+      toast(data.enabled ? "已保存，智能功能将使用你自备的模型" : "已保存；当前为停用状态，智能功能使用本地引擎（演示模式）");
     } catch (e) {
       toast(e instanceof Error ? e.message : "保存失败", "error");
     } finally {
@@ -228,7 +228,7 @@ export default function SettingsPage() {
       await load();
       setApiKey("");
       setTestResult(null);
-      toast("已清除配置，AI 功能回落系统默认");
+      toast("已清除配置，智能功能回落本地引擎（演示模式）");
     } catch (e) {
       toast(e instanceof Error ? e.message : "清除失败", "error");
     } finally {
@@ -242,7 +242,7 @@ export default function SettingsPage() {
 
   return (
     <div className="mx-auto w-full max-w-[880px] space-y-6">
-      <PageHeader title="设置" desc="粘贴 API Key、选一个模型即可，所有 AI 能力自动切换到你自备的模型" />
+      <PageHeader title="设置" desc="粘贴 API Key、选一个模型即可，所有智能能力自动切换到你自备的模型；未配置时使用本地引擎（演示模式）" />
 
       <Card className="p-5">
         <CardTitle>当前状态</CardTitle>
@@ -263,8 +263,8 @@ export default function SettingsPage() {
           </div>
         ) : (
           <p className="text-sm text-t3">
-            未配置。AI 功能使用系统默认模型；粘贴你自己的 API Key 后，简历解析、JD 结构化、匹配解读、
-            打招呼语等全部 AI 能力都会改用你选的大模型。
+            未配置：当前使用本地引擎（演示模式）。粘贴你自己的 API Key 并启用后，简历解析、JD 结构化、匹配解读、
+            打招呼语等全部能力都会改用你选的大模型。
           </p>
         )}
       </Card>
@@ -404,7 +404,7 @@ export default function SettingsPage() {
               onChange={(e) => setEnabled(e.target.checked)}
               className="h-4 w-4"
             />
-            启用自备模型（关闭后所有 AI 功能回落系统默认）
+            启用自备模型（关闭后所有智能功能回落本地引擎）
           </label>
         </div>
 

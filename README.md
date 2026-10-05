@@ -1,4 +1,4 @@
-# JobHunter — AI 求职操作系统
+# JobHunter — 智能求职操作系统
 
 <p align="center">
   <picture>
@@ -8,17 +8,21 @@
 </p>
 
 <p align="center">
-  <strong>面向国内求职者的 AI 工作台：简历工作台 × 职位智能匹配 × Agent 半自动投递</strong>
+  <strong>面向国内求职者的智能工作台：简历工作台 × 职位智能匹配 × Agent 半自动投递</strong>
 </p>
 
 <p align="center">
   <img alt="Next.js 15" src="https://img.shields.io/badge/Next.js-15-black">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-strict-blue">
-  <img alt="tests" src="https://img.shields.io/badge/tests-228%20passing-brightgreen">
+  <img alt="tests" src="https://img.shields.io/badge/tests-305%20passing-brightgreen">
   <img alt="ci" src="https://img.shields.io/badge/CI-GitHub%20Actions-blue">
   <img alt="license" src="https://img.shields.io/badge/license-MIT-green">
   <img alt="safety" src="https://img.shields.io/badge/agent-Human--in--the--loop-orange">
 </p>
+
+> ⚡ **装个 skill 即用（CLI 轻模式）**：不装依赖、不建数据库——把 [skills/](skills/README.md) 下的技能装进 Claude Code / ZCode，立刻获得**简历诊断 · JD 解析 · 岗位匹配（确定性评分）· 简历定制（带溯源）· 打招呼语**五个轻场景，评分规则与防编造约束和 Web 版同源。投递看板、进度持久化、Agent 半自动投递等完整能力，走下面的 Web OS。
+
+> 💡 **零成本开箱即用**：默认内置**本地引擎（演示模式）**——无需任何 API Key 即可跑通全部功能；在「设置 → 自备模型」粘贴 Key（GLM / DeepSeek / Kimi / 通义等国产模型）即切换真实大模型。
 
 ## 📸 项目截图
 
@@ -48,7 +52,7 @@
 npm run dev
 ```
 
-弹出端口 3000 预览后点击即可进入完整系统——数据库、AI 网关（Mock Provider）全部可用，无需任何 API key。
+弹出端口 3000 预览后点击即可进入完整系统——数据库、智能引擎（本地引擎演示模式）全部可用，无需任何 API key、零成本。
 
 本地运行同样三步：
 
@@ -70,13 +74,13 @@ npm install && npm run db:seed && npm run dev   # http://localhost:3000
 | 步骤 | 去哪 | 做什么 | 你会看到 |
 |---|---|---|---|
 | **1** | 登录页 | 用演示账号登录 | 数据看板：投递漏斗、各阶段分布、近 8 周趋势、待办概览 |
-| **2** | 简历工作台 | 打开主简历 | AI 结构化简历 + 诊断评分与优化建议，可逐条采纳 / 拒绝 / 编辑后采纳 |
-| **3** | 职位中心 | 点开职位，或粘贴一段 JD 让 AI 解析 | 自动建档 + 五维规则评分 + AI「优势 / 差距 / 风险」结构化解读 |
+| **2** | 简历工作台 | 打开主简历 | 引擎结构化简历 + 诊断评分与优化建议，可逐条采纳 / 拒绝 / 编辑后采纳 |
+| **3** | 职位中心 | 点开职位，或粘贴一段 JD 自动解析 | 自动建档 + 五维规则评分 + 引擎「优势 / 差距 / 风险」结构化解读 |
 | **4** | Discovery 推荐 | 拖动「匹配偏好 · 权重向量」滑杆（比如把城市拉满）后应用 | 推荐列表**实时重排**——用户自调权重向量，归一化后走加权点积 |
 | **5** | Job Sources | 点一张来源卡，走引导式导入 | 6 步指引 + 隐私说明；导入走统一归一化 + SHA-256 指纹三级去重（EXACT / POSSIBLE / NEW） |
 | **6** | 投递看板 | 查看预置流水线与提醒 | 字节跳动（面试）/ 小红书（已投递）/ 米哈游（想投），合法流转校验 + 事件时间线 |
 
-> 全程 AI 功能由离线确定性 Mock Provider 驱动，不需要配置任何模型。想接真模型：设置页选国产服务商（智谱 / DeepSeek / Kimi / 通义千问）只填一个 Key，AES-256-GCM 加密存储。
+> 全程智能功能由离线确定性本地引擎（Mock Provider）驱动，不需要配置任何模型。想接真模型：设置页选国产服务商（智谱 / DeepSeek / Kimi / 通义千问）只填一个 Key，AES-256-GCM 加密存储。
 
 ## 🏗️ 架构图
 
@@ -106,14 +110,17 @@ flowchart TB
 
 ## 🧰 技术栈
 
-Next.js 15 (App Router) · TypeScript · Tailwind CSS 4 · Drizzle ORM + SQLite（生产可切 PostgreSQL）· jose (JWT) · bcryptjs · Zod · Vitest（228 用例 / 30 个测试文件）
+Next.js 15 (App Router) · TypeScript · Tailwind CSS 4 · Drizzle ORM + SQLite（生产可切 PostgreSQL）· jose (JWT) · bcryptjs · Zod · Vitest（275 用例 / 40 个测试文件）
 
 ## 🔩 核心实现
+
+- **生产级任务运行时（V4.0）**：AI 任务从轮询升级为 **SSE 实时事件流**（`TaskEventBus` 进程内总线，接口对齐 BullMQ/Redis Pub/Sub 可插拔替换）——任务进度/阶段文案落库 + 推流双通道，前端 `streamTask` 订阅、断流自动回落轮询；配套 **AI 成本核算**（按模型价格表 token→元折算，环境变量可覆盖，`GET /api/v1/ai-usage` 汇总）与**存储抽象层**（`StorageService`：Local/OSS 驱动可切换，键格式向后兼容）
 
 - **Browser Agent 半自动投递**：Agent 准备 → 用户确认 → 提交的 Level 1 流程，显式安全状态机（`RUNNING / BLOCKED_CAPTCHA / WAITING_CONFIRM / HANDED_OVER`），验证码绝不绕过、全链路 `agent_events` 审计留痕（[apply-flow.ts](src/server/agent/apply-flow.ts)）
 - **Agent 安全边界**：不存平台凭证、人工复检有限次、用户可随时接管（Handover）、阻断自动联动站内提醒、失败逐级降级（[11 Agent 安全边界](docs/11-agent-security.md)）
 - **可解释的匹配引擎**：规则评分器（加权点积）+ 用户自调权重向量（归一化、向后兼容）+ AI 结构化「优势 / 差距 / 风险」解读（[match-scorer.ts](src/server/core/match-scorer.ts)）
 - **AI 网关**：统一 LLM 接入，Mock Provider 离线可用，支持自带 OpenAI 兼容模型（GLM / DeepSeek / Qwen），日限额与用量计量，用户 Key 加密存储（[gateway.ts](src/server/ai/gateway.ts)）
+- **大厂官方招聘导航**：28 家企业官方招聘入口直达（校招/社招分入口），域名人工核对标注「已验证 / 待验证」，只做导航不代登录不代投（[company-sources.ts](src/server/core/company-sources.ts)）
 - **职位来源适配器架构**：统一 JobSource 能力模型 / 健康检查 / 失败隔离，确定性指纹 + 三级去重（[08 Job Source 架构](docs/08-job-source-architecture.md)）
 
 ### V2：AI Job Hunter Agent 平台
@@ -159,7 +166,7 @@ Next.js 15 (App Router) · TypeScript · Tailwind CSS 4 · Drizzle ORM + SQLite�
 
 | 维度 | 结果 |
 |---|---|
-| 单元 / 集成 / E2E | **228 / 228 passed**（30 个测试文件，Vitest，无需外部服务） |
+| 单元 / 集成 / E2E | **275 / 275 passed**（40 个测试文件，Vitest，无需外部服务） |
 | 类型检查 | `tsc --noEmit` 0 错误（`npm run typecheck`） |
 | CI | GitHub Actions：push/PR 自动跑 typecheck + 测试 + 构建（[.github/workflows/ci.yml](.github/workflows/ci.yml)） |
 | 构建与冒烟 | `npm run build` + 生产模式真实浏览器冒烟通过（[V3 Phase 2 验收](docs/13-v3-phase2-test-report.md)、[V3.3 测试报告](docs/16-v3.3-test-report.md)） |

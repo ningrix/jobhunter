@@ -50,6 +50,13 @@
       "when": 1788615755059,
       "tag": "0006_medical_barracuda",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1788669622529,
+      "tag": "0007_vengeful_power_man",
+      "breakpoints": true
     }
   ]
 }

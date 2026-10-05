@@ -3,7 +3,7 @@ import "./globals.css";
 import { ToastProvider } from "@/components/ui/toast";
 
 export const metadata: Metadata = {
-  title: "JobHunter — AI 求职操作系统",
+  title: "JobHunter — 智能求职操作系统",
   description: "简历工作台 · 职位匹配 · 投递进度管理",
 };
 

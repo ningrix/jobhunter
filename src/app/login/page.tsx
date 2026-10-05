@@ -58,7 +58,7 @@ export default function LoginPage() {
               </div>
               <div>
                 <p className="text-[17px] font-bold leading-tight">JobHunter</p>
-                <p className="text-[10.5px] tracking-[0.15em] text-white/70">AI 求职操作系统</p>
+                <p className="text-[10.5px] tracking-[0.15em] text-white/70">本地引擎（演示模式）</p>
               </div>
             </div>
             <p className="mt-8 text-xl font-bold leading-snug">
@@ -69,10 +69,10 @@ export default function LoginPage() {
           </div>
           <ul className="space-y-2.5 text-[12.5px] text-white/85">
             <li className="flex items-center gap-2">
-              <Sparkles size={14} strokeWidth={1.8} /> AI 解析简历与 JD，一键结构化
+              <Sparkles size={14} strokeWidth={1.8} /> 简历与 JD 一键结构化
             </li>
             <li className="flex items-center gap-2">
-              <Sparkles size={14} strokeWidth={1.8} /> 规则评分 + AI 解读的智能匹配
+              <Sparkles size={14} strokeWidth={1.8} /> 规则评分 + 引擎解读的智能匹配
             </li>
             <li className="flex items-center gap-2">
               <Sparkles size={14} strokeWidth={1.8} /> 想投 → Offer 全流程投递看板

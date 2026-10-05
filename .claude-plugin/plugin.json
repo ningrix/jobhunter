@@ -1,0 +1,5 @@
+{
+  "name": "jobhunter",
+  "description": "JobHunter 求职 AI 技能包：简历诊断、JD 解析、岗位匹配（确定性规则评分）、简历定制（带溯源）、打招呼语。评分规则与防编造约束和 Web 版同源，零安装即用。",
+  "version": "0.1.0"
+}

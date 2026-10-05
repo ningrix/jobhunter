@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, Briefcase, Compass, FileText, LayoutDashboard, Plug, Settings, Sparkles, Target } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Bell, Briefcase, Building2, Compass, FileText, LayoutDashboard, Menu, Plug, Settings, Sparkles, Target, X } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { LogoutButton } from "@/app/(app)/logout-button";
 
@@ -19,33 +20,44 @@ const GROUPS = [
       { href: "/job-sources", label: "职位来源", icon: Plug },
     ],
   },
-  {
-    label: "投递跟进",
-    items: [
-      { href: "/applications", label: "投递看板", icon: Briefcase },
-      { href: "/reminders", label: "提醒", icon: Bell },
-      { href: "/discovery", label: "职位发现", icon: Compass },
-    ],
-  },
+      {
+        label: "投递跟进",
+        items: [
+          { href: "/applications", label: "投递看板", icon: Briefcase },
+          { href: "/reminders", label: "提醒", icon: Bell },
+          { href: "/discovery", label: "职位发现", icon: Compass },
+          { href: "/company-sources", label: "官方招聘导航", icon: Building2 },
+        ],
+      },
   {
     label: "系统",
     items: [{ href: "/settings", label: "设置", icon: Settings }],
   },
 ] as const;
 
-export function AppSidebar({ name, email }: { name: string; email: string }) {
+/** 侧栏主体：桌面常驻侧栏与移动端抽屉共用同一份内容 */
+function SidebarBody({ name, email, onClose }: { name: string; email: string; onClose?: () => void }) {
   const pathname = usePathname();
 
   return (
-    <aside className="sticky top-0 z-20 flex h-screen w-[232px] shrink-0 flex-col border-r border-border bg-surface">
+    <>
       <div className="flex items-center gap-2.5 px-5 pb-4 pt-5">
         <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[10px] bg-gradient-brand text-white">
           <Target size={20} strokeWidth={2} />
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="text-[17px] font-bold leading-tight text-t1">JobHunter</p>
-          <p className="text-[11px] tracking-[0.1em] text-t3">AI 求职操作系统</p>
+          <p className="text-[11px] tracking-[0.1em] text-t3">本地引擎（演示模式）</p>
         </div>
+        {onClose && (
+          <button
+            onClick={onClose}
+            aria-label="关闭导航菜单"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] border border-border-strong bg-surface text-t2 transition hover:text-t1"
+          >
+            <X size={16} strokeWidth={1.8} />
+          </button>
+        )}
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3">
@@ -60,6 +72,7 @@ export function AppSidebar({ name, email }: { name: string; email: string }) {
                   <Link
                     key={item.href}
                     href={item.href}
+                    onClick={onClose}
                     className={`relative flex items-center gap-2.5 rounded-[11px] px-3 py-2.5 text-[13.5px] transition-colors ${
                       active
                         ? "bg-primary-soft font-semibold text-primary"
@@ -82,9 +95,9 @@ export function AppSidebar({ name, email }: { name: string; email: string }) {
       <div className="mx-4 mb-4 rounded-[14px] bg-surface-2 p-3.5">
         <div className="flex items-center gap-2">
           <Sparkles size={16} strokeWidth={1.7} className="text-primary" />
-          <p className="text-[11.5px] font-semibold text-t2">AI 能力</p>
+          <p className="text-[11.5px] font-semibold text-t2">智能能力</p>
         </div>
-        <p className="mt-1.5 text-[10.5px] leading-relaxed text-t3">简历解析 · JD 结构化 · 智能匹配 · 诊断优化</p>
+        <p className="mt-1.5 text-[10.5px] leading-relaxed text-t3">本地引擎演示：简历解析 · JD 结构化 · 智能匹配 · 诊断优化</p>
       </div>
 
       <div className="flex items-center gap-2.5 border-t border-border p-4">
@@ -98,6 +111,70 @@ export function AppSidebar({ name, email }: { name: string; email: string }) {
         <ThemeToggle />
         <LogoutButton />
       </div>
-    </aside>
+    </>
+  );
+}
+
+export function AppSidebar({ name, email }: { name: string; email: string }) {
+  const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+
+  // 路由变化即收起抽屉（导航后抽屉不能挡住新页面）
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
+  // 抽屉打开时锁定 body 滚动
+  useEffect(() => {
+    document.body.style.overflow = open ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [open]);
+
+  // Esc 关闭抽屉
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
+  return (
+    <>
+      {/* 桌面常驻侧栏（md 及以上） */}
+      <aside className="sticky top-0 z-20 hidden h-screen w-[232px] shrink-0 flex-col border-r border-border bg-surface md:flex">
+        <SidebarBody name={name} email={email} />
+      </aside>
+
+      {/* 移动端顶栏（md 以下）：汉堡入口 */}
+      <header className="fixed inset-x-0 top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-surface px-4 print-hidden md:hidden">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-[30px] w-[30px] items-center justify-center rounded-[9px] bg-gradient-brand text-white">
+            <Target size={17} strokeWidth={2} />
+          </div>
+          <p className="text-[15px] font-bold text-t1">JobHunter</p>
+        </div>
+        <button
+          onClick={() => setOpen(true)}
+          aria-label="打开导航菜单"
+          className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-border-strong bg-surface text-t2 transition hover:text-t1"
+        >
+          <Menu size={18} strokeWidth={1.8} />
+        </button>
+      </header>
+
+      {/* 移动端抽屉 */}
+      {open && (
+        <div className="fixed inset-0 z-40 md:hidden" role="dialog" aria-modal="true" aria-label="导航菜单">
+          <div className="absolute inset-0 bg-scrim" onClick={() => setOpen(false)} />
+          <aside className="absolute inset-y-0 left-0 flex h-full w-[272px] max-w-[85vw] flex-col border-r border-border bg-surface">
+            <SidebarBody name={name} email={email} onClose={() => setOpen(false)} />
+          </aside>
+        </div>
+      )}
+    </>
   );
 }

@@ -108,7 +108,7 @@ export default function ResumesPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="简历工作台" desc="上传 PDF / Word(docx) / txt / md 即保存（保留本地文件，可随时打开原文件）；AI 解析尽力而为，失败可一键重试" />
+      <PageHeader title="简历工作台" desc="上传 PDF / Word(docx) / txt / md 即保存（保留本地文件，可随时打开原文件）；解析尽力而为，失败可一键重试" />
 
       <Card className="flex flex-wrap items-center gap-2 p-4">
         <Input
@@ -179,7 +179,7 @@ export default function ResumesPage() {
                 href={`/resumes/${r.id}`}
                 className="inline-flex h-8 items-center rounded-[10px] border border-primary-soft-border bg-primary-soft px-3 text-xs font-semibold text-primary transition hover:bg-primary-soft/70"
               >
-                编辑 / AI 优化
+                编辑 / 优化
               </Link>
               {!r.isPrimary && (
                 <button
@@ -201,7 +201,7 @@ export default function ResumesPage() {
         })}
         {list.length === 0 && (
           <Card className="md:col-span-2 xl:col-span-3">
-            <EmptyState icon={FileText} title="还没有简历" hint="先新建一份空白简历，或上传文件让 AI 解析" />
+            <EmptyState icon={FileText} title="还没有简历" hint="先新建一份空白简历，或上传文件自动解析" />
           </Card>
         )}
       </div>

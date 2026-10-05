@@ -320,7 +320,7 @@ export default function DiscoveryPage() {
             onChange={(e) => setUseAI(e.target.checked)}
             className="h-4 w-4 accent-[#6366f1]"
           />
-          AI 打招呼语（失败自动回退模板，≤60 字）
+          智能打招呼语（失败自动回退模板，≤60 字）
         </label>
         {msg && <span className="text-sm text-t2">{msg}</span>}
       </div>
@@ -479,9 +479,9 @@ export default function DiscoveryPage() {
                     className="h-5 px-2 text-[10.5px]"
                   >
                     {e.detail?.greetingSource === "ai"
-                      ? "AI 生成"
+                      ? "引擎生成"
                       : e.detail?.greetingSource === "template_fallback"
-                        ? "AI 失败→模板"
+                        ? "引擎失败→模板"
                         : "模板"}
                   </Badge>
                 )}

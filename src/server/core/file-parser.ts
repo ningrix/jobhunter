@@ -1,9 +1,26 @@
-import fs from "node:fs/promises";
 import path from "node:path";
 import { AppError, ErrorCode } from "@/shared/errors";
+import { getStorage, UPLOAD_KEY_PREFIX, UPLOAD_ROOT } from "@/server/storage";
 
 export const MAX_UPLOAD_SIZE = 5 * 1024 * 1024; // 5MB
-export const UPLOAD_DIR = path.resolve(process.cwd(), "data", "uploads");
+/** 兼容别名：物理根目录已移交存储抽象层（server/storage） */
+export const UPLOAD_DIR = UPLOAD_ROOT;
+
+/**
+ * 服务端按扩展名推导 MIME：上传存储与下载响应都不信任客户端自报的 Content-Type。
+ * 否则 text/html 等可被浏览器同源渲染的类型会经 /api/v1/files/[id] 造成存储型 XSS。
+ */
+const MIME_BY_EXT: Record<string, string> = {
+  txt: "text/plain; charset=utf-8",
+  md: "text/markdown; charset=utf-8",
+  pdf: "application/pdf",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+};
+
+export function safeMimeFor(filename: string): string {
+  const ext = (filename.toLowerCase().split(".").pop() ?? "").trim();
+  return MIME_BY_EXT[ext] ?? "application/octet-stream";
+}
 
 /** 上传类型白名单预检：.doc 为老二进制格式无法解析，明确引导改存 docx/pdf */
 export function assertUploadType(filename: string, mime: string): void {
@@ -28,13 +45,14 @@ export function assertUploadType(filename: string, mime: string): void {
 export function resolveUploadPath(relPath: string): string {
   const abs = path.resolve(process.cwd(), relPath);
   const normalized = path.normalize(abs);
-  if (normalized !== UPLOAD_DIR && !normalized.startsWith(UPLOAD_DIR + path.sep)) {
+  if (normalized !== UPLOAD_ROOT && !normalized.startsWith(UPLOAD_ROOT + path.sep)) {
     throw new AppError(ErrorCode.FORBIDDEN, "非法文件路径");
   }
   return normalized;
-}/** 读取已保存的上传文件（owner 校验由调用方完成） */
+}
+/** 读取已保存的上传文件（owner 校验由调用方完成）；经存储抽象层，本地/云端同一路径 */
 export async function readUpload(relPath: string): Promise<Buffer> {
-  return fs.readFile(resolveUploadPath(relPath));
+  return getStorage().get(relPath);
 }
 
 /** 从上传文件提取纯文本（txt/md 直接读取，pdf/docx 走解析器） */
@@ -70,9 +88,8 @@ export async function extractText(filename: string, mime: string, buf: Buffer): 
 }
 
 export async function saveUpload(filename: string, buf: Buffer): Promise<string> {
-  await fs.mkdir(UPLOAD_DIR, { recursive: true });
   const ext = path.extname(filename).toLowerCase() || ".bin";
-  const rel = path.join("data", "uploads", `${crypto.randomUUID()}${ext}`);
-  await fs.writeFile(path.resolve(process.cwd(), rel), buf);
-  return rel.replace(/\\/g, "/");
+  const key = `${UPLOAD_KEY_PREFIX}${crypto.randomUUID()}${ext}`;
+  await getStorage().put(key, buf);
+  return key;
 }

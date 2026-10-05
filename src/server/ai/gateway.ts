@@ -3,13 +3,16 @@ import { getDb } from "@/db/client";
 import { aiUsageLogs } from "@/db/schema";
 import { AppError, ErrorCode } from "@/shared/errors";
 import { PROMPTS } from "./prompts";
+import { computeCost } from "./pricing";
 import { MockProvider, type AIProvider, type ChatResult } from "./providers/mock";
 import { OpenAICompatProvider } from "./providers/openai-compat";
 import { resolveUserProvider } from "./settings";
 
 /**
  * Provider 解析：用户配置了自带 AI 凭据（ai_settings 且 enabled）时优先使用用户专属 Provider，
- * 否则回落 env 全局默认（mock / openai）。业务与限额逻辑不受影响。
+ * 否则回落 env 全局默认（mock / openai）。
+ * AI_OPENAI_FALLBACK=off 时关闭 env openai 兜底（开放注册部署防陌生用户消耗运营方 Key），
+ * 未配置自带 Key 的用户回落 mock 演示模式。
  */
 export async function getProvider(userId?: string | null): Promise<AIProvider> {
   if (userId) {
@@ -17,7 +20,11 @@ export async function getProvider(userId?: string | null): Promise<AIProvider> {
     if (userProvider) return userProvider;
   }
   const name = process.env.AI_PROVIDER ?? "mock";
-  if (name === "openai") return new OpenAICompatProvider();
+  if (name === "openai") {
+    const fallback = (process.env.AI_OPENAI_FALLBACK ?? "on").trim().toLowerCase();
+    if (fallback === "off") return new MockProvider();
+    return new OpenAICompatProvider();
+  }
   return new MockProvider();
 }
 
@@ -118,6 +125,6 @@ async function logUsage(args: {
     model: args.meta.model,
     promptTokens: args.meta.promptTokens,
     completionTokens: args.meta.completionTokens,
-    cost: 0, // 接入真实 Provider 后按价格表折算
+    cost: computeCost(args.meta.model, args.meta.promptTokens, args.meta.completionTokens),
   });
 }

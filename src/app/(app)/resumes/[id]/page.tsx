@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Download, RotateCcw, Save, Sparkles, Target } from "lucide-react";
-import { api, waitForTask } from "@/lib/client";
+import { api, streamTask, type TaskProgress } from "@/lib/client";
 import { ResumePreview } from "@/components/resume/ResumePreview";
 import { RESUME_TEMPLATE_LIST } from "@/components/resume/templates";
 import { Modal } from "@/components/modal";
@@ -80,6 +80,9 @@ export default function ResumeDetailPage() {
     Record<number, { decision: "accepted" | "rejected"; after: string }>
   >({});
 
+  // V4.0 任务运行时：SSE 实时进度（诊断/定制共用一条）
+  const [taskProgress, setTaskProgress] = useState<TaskProgress | null>(null);
+
   // V3.1 B5：JD → 简历定制
   const [showTailor, setShowTailor] = useState(false);
   const [jobOptions, setJobOptions] = useState<JobOption[]>([]);
@@ -124,7 +127,9 @@ export default function ResumeDetailPage() {
       );
       if (r.status === "pending" && r.taskId) {
         setMsg("重新解析中…");
-        await waitForTask(r.taskId, 60000).catch(() => undefined);
+        setTaskProgress(null);
+        await streamTask(r.taskId, setTaskProgress, 60000).catch(() => undefined);
+        setTaskProgress(null);
         await load();
         setMsg("重新解析已结束，可查看最新状态");
       } else {
@@ -179,18 +184,20 @@ export default function ResumeDetailPage() {
     setTailorError("");
     setTailor(null);
     setTailorEditState({});
+    setTaskProgress(null);
     try {
       const { taskId } = await api<{ taskId: string }>(`/resumes/${id}/tailor`, {
         method: "POST",
         body: { jobId: tailorJobId },
       });
-      const task = await waitForTask(taskId, 60000);
+      const task = await streamTask(taskId, setTaskProgress, 60000);
       const tailor = (task.output as { tailor: ResumeTailorResult }).tailor;
       setTailor(tailor);
     } catch (e) {
       setTailorError(e instanceof Error ? e.message : "定制分析失败");
     } finally {
       setTailorBusy(false);
+      setTaskProgress(null);
     }
   }
 
@@ -274,13 +281,14 @@ export default function ResumeDetailPage() {
   async function optimize() {
     if (!current) return;
     setBusy("optimize");
-    setMsg("AI 优化分析中…");
+    setMsg("优化分析中…");
+    setTaskProgress(null);
     try {
       const { taskId } = await api<{ taskId: string }>(`/resumes/${id}/optimize`, {
         method: "POST",
         body: { versionId: current.id },
       });
-      await waitForTask(taskId, 60000);
+      await streamTask(taskId, setTaskProgress, 60000);
       setAnalysis(await api<Analysis>(`/resumes/${id}/analysis?versionId=${current.id}`));
       setSuggestionState({});
       setMsg("");
@@ -288,6 +296,7 @@ export default function ResumeDetailPage() {
       setMsg(e instanceof Error ? e.message : "优化失败");
     } finally {
       setBusy("");
+      setTaskProgress(null);
     }
   }
 
@@ -311,14 +320,14 @@ export default function ResumeDetailPage() {
         <select className={selectCls} value={current.id} onChange={(e) => pick(versions.find((v) => v.id === e.target.value)!)}>
           {versions.map((v) => (
             <option key={v.id} value={v.id}>
-              v{v.versionNo} · {v.source === "upload" ? "上传解析" : v.source === "ai" ? "AI 优化" : "手动"}
+              v{v.versionNo} · {v.source === "upload" ? "上传解析" : v.source === "ai" ? "引擎优化" : "手动"}
               {v.note ? ` · ${v.note}` : ""}
             </option>
           ))}
         </select>
         <Button onClick={optimize} disabled={busy !== ""}>
           <Sparkles size={14} strokeWidth={1.8} />
-          {busy === "optimize" ? "AI 分析中…" : "AI 优化建议"}
+          {busy === "optimize" ? "分析中…" : "优化建议"}
         </Button>
         <Button variant="soft" onClick={openTailor} disabled={busy !== ""}>
           <Target size={14} strokeWidth={1.7} />
@@ -329,6 +338,7 @@ export default function ResumeDetailPage() {
           保存为新版本
         </Button>
         {msg && <span className="text-sm text-t2">{msg}</span>}
+        {busy === "optimize" && taskProgress && <TaskProgressBar p={taskProgress} className="w-full" />}
       </div>
 
       {/* Stage B：上传文件信息条（本地路径/打开原文件/解析状态/重新解析） */}
@@ -364,7 +374,7 @@ export default function ResumeDetailPage() {
           )}
           {fileInfo.parseStatus !== "done" && (
             <span className="w-full text-xs text-t3">
-              未完成结构化解析：匹配评分与 AI 优化暂不可用；解析成功后自动解锁。
+              未完成结构化解析：匹配评分与优化暂不可用；解析成功后自动解锁。
             </span>
           )}
         </div>
@@ -374,9 +384,9 @@ export default function ResumeDetailPage() {
       {analysis && (
         <Card className="p-6 print-hidden">
           <div className="flex flex-wrap items-center gap-4">
-            <ScoreRing score={analysis.score} size={72} stroke={9} caption="AI 诊断" />
+            <ScoreRing score={analysis.score} size={72} stroke={9} caption="引擎诊断" />
             <div className="min-w-0 flex-1">
-              <p className="text-[15px] font-bold text-t1">AI 简历诊断</p>
+              <p className="text-[15px] font-bold text-t1">简历诊断</p>
               <ul className="mt-1 list-disc pl-5 text-sm text-t2">
                 {analysis.issues.map((i, idx) => (
                   <li key={idx}>{i}</li>
@@ -448,11 +458,11 @@ export default function ResumeDetailPage() {
               })}
               <Button
                 onClick={() =>
-                  saveAsVersion(`AI 优化（采纳 ${Object.values(suggestionState).filter((s) => s.decision === "accepted").length} 条建议）`, "ai")
+                  saveAsVersion(`引擎优化（采纳 ${Object.values(suggestionState).filter((s) => s.decision === "accepted").length} 条建议）`, "ai")
                 }
                 disabled={busy !== ""}
               >
-                把当前内容保存为新版本（AI 优化）
+                把当前内容保存为新版本（引擎优化）
               </Button>
             </div>
           )}
@@ -656,6 +666,7 @@ export default function ResumeDetailPage() {
               <Target size={14} strokeWidth={1.8} />
               {tailorBusy ? "分析中…" : "开始定制分析"}
             </Button>
+            {tailorBusy && taskProgress && <TaskProgressBar p={taskProgress} className="w-full" />}
             {tailorError && <p className="text-danger">{tailorError}</p>}
 
             {tailor && (
@@ -791,7 +802,7 @@ export default function ResumeDetailPage() {
                 )}
 
                 <p className="text-xs text-t3">
-                  应用建议后记得点「保存为新版本」。AI 不会替你虚构任何经历——缺口只能靠学习或真实项目补上。
+                  应用建议后记得点「保存为新版本」。引擎不会替你虚构任何经历——缺口只能靠学习或真实项目补上。
                 </p>
               </div>
             )}
@@ -830,6 +841,24 @@ function DiffText({ before, after }: { before: string; after: string }) {
         ),
       )}
     </p>
+  );
+}
+
+/** V4.0 任务运行时：SSE 实时进度条（阶段文案 + 百分比） */
+function TaskProgressBar({ p, className = "" }: { p: TaskProgress; className?: string }) {
+  return (
+    <div className={`print-hidden ${className}`}>
+      <div className="mb-1 flex items-center justify-between text-xs text-t2">
+        <span>{p.phase || "处理中…"}</span>
+        <span className="tabular-nums text-t3">{Math.round(p.progress)}%</span>
+      </div>
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-2">
+        <div
+          className="h-full rounded-full bg-primary transition-all duration-500"
+          style={{ width: `${Math.max(4, Math.min(100, p.progress))}%` }}
+        />
+      </div>
+    </div>
   );
 }
 

@@ -104,7 +104,7 @@ export default function JobsPage() {
       setSalaryMin(s.salaryMin != null ? String(s.salaryMin) : "");
       setSalaryMax(s.salaryMax != null ? String(s.salaryMax) : "");
       if (!companyName) setCompanyName("");
-      setMsg("AI 解析完成，请确认并补充公司名后保存");
+      setMsg("解析完成，请确认并补充公司名后保存");
     } catch (e) {
       setError(e instanceof Error ? e.message : "解析失败");
     } finally {
@@ -188,7 +188,7 @@ export default function JobsPage() {
     <div className="space-y-5">
       <PageHeader
         title="职位中心"
-        desc="粘贴 JD 让 AI 结构化建档，一键匹配你的简历"
+        desc="粘贴 JD 自动结构化建档，一键匹配你的简历"
         right={
           <Button onClick={() => setShowAdd(true)}>
             <Plus />
@@ -299,7 +299,7 @@ export default function JobsPage() {
             <EmptyState
               icon={Briefcase}
               title="暂无职位"
-              hint="点击右上角「粘贴 JD 添加职位」，AI 会自动结构化录入"
+              hint="点击右上角「粘贴 JD 添加职位」，系统会自动结构化录入"
             />
           </Card>
         )}
@@ -317,7 +317,7 @@ export default function JobsPage() {
             <div>
               <Button onClick={parseJd} disabled={busy !== ""}>
                 <Sparkles size={14} strokeWidth={1.8} />
-                {busy === "parse" ? "AI 解析中…" : "AI 解析 JD"}
+                {busy === "parse" ? "解析中…" : "解析 JD"}
               </Button>
             </div>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
@@ -339,7 +339,7 @@ export default function JobsPage() {
             </div>
             {structured && (
               <div className="rounded-[10px] border border-success-border bg-success-soft px-3.5 py-2.5 text-xs leading-relaxed text-success">
-                AI 已解析出 {structured.skills.length} 项技能要求
+                已解析出 {structured.skills.length} 项技能要求
                 {structured.experienceYearsMin ? `、${structured.experienceYearsMin} 年经验` : ""}
                 {structured.education ? `、${structured.education}学历` : ""}
                 ，可手动修正后保存。

@@ -6,6 +6,7 @@ import {
   assertUploadType,
   extractText,
   MAX_UPLOAD_SIZE,
+  safeMimeFor,
   saveUpload,
 } from "@/server/core/file-parser";
 import { markParseFailed, saveUploadRecord } from "@/server/core/resume-service";
@@ -30,7 +31,7 @@ export const POST = defineRoute({ auth: true }, async ({ req, user }) => {
   const relPath = await saveUpload(file.name, buf);
   const { resume, version } = await saveUploadRecord(user!.id, {
     name: file.name,
-    mime: file.type || "application/octet-stream",
+    mime: safeMimeFor(file.name),
     size: file.size,
     path: relPath,
   });

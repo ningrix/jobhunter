@@ -10,7 +10,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex min-h-screen">
       <AppSidebar name={user.name} email={user.email} />
-      <main className="relative flex-1 overflow-x-auto p-8">
+      {/* 移动端 pt-[72px] 给固定顶栏（h-14）让位；桌面恢复 p-8 */}
+      <main className="relative flex-1 overflow-x-auto p-4 pt-[72px] md:p-8">
         <AmbientGlow />
         <div className="relative z-10">{children}</div>
       </main>

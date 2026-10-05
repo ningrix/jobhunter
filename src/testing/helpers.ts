@@ -44,6 +44,10 @@ export interface CallRouteOptions {
   token?: string;
   params?: Record<string, string>;
   cookie?: string;
+  /** 跳过 json 解析，直接返回原始 Response（SSE / 文件流用） */
+  raw?: boolean;
+  /** 透传 AbortSignal（SSE 客户端断开测试用） */
+  signal?: AbortSignal;
 }
 
 /** 直接调用 route handler（免起 Next 服务），返回 status + json + 原始响应 */
@@ -62,6 +66,7 @@ export async function callRoute(
     {
       method: opts.method ?? "GET",
       headers,
+      signal: opts.signal,
       ...(opts.body !== undefined
         ? { body: isForm ? (opts.body as BodyInit) : JSON.stringify(opts.body) }
         : {}),
@@ -70,6 +75,9 @@ export async function callRoute(
   );
 
   const res = await handler(req, { params: Promise.resolve(opts.params ?? {}) });
+  if (opts.raw) {
+    return { status: res.status, json: {} as Record<string, unknown>, res };
+  }
   const json = (await res.json()) as Record<string, unknown>;
   return { status: res.status, json, res };
 }
