@@ -102,20 +102,53 @@ export async function revokeRefreshToken(raw: string): Promise<void> {
 }
 
 // —— 会话 ——
+/**
+ * 本地单用户模式（开箱即用）：dev 默认免登录，所有请求回落到自动创建的本地用户。
+ * 生产（NODE_ENV=production）与测试（NODE_ENV=test）不受影响，始终要求真实登录；
+ * dev 下设置 AUTH_MODE=login 可恢复登录页流程。判定逻辑在零依赖的 auth-mode.ts，
+ * 供客户端组件（经由服务端 props）与服务端共用。
+ */
+export const LOCAL_USER_EMAIL = "local@jobhunter.local";
+import { isLocalSingleUserMode } from "./auth-mode";
+export { isLocalSingleUserMode };
+
+export async function getOrCreateLocalUser(): Promise<SessionUser> {
+  const db = getDb();
+  const [existing] = await db.select().from(users).where(eq(users.email, LOCAL_USER_EMAIL)).limit(1);
+  if (existing) {
+    if (existing.status !== "active") throw new AppError(ErrorCode.FORBIDDEN, "本地用户已被禁用");
+    return { id: existing.id, email: existing.email, name: existing.name };
+  }
+  const [created] = await db
+    .insert(users)
+    .values({
+      email: LOCAL_USER_EMAIL,
+      name: "本地用户",
+      // 密码随机且不外泄：本地单用户模式不走密码登录
+      passwordHash: hashPassword(randomBytes(18).toString("hex")),
+    })
+    .returning();
+  return { id: created.id, email: created.email, name: created.name };
+}
+
 export async function getSessionUser(req: NextRequest): Promise<SessionUser | null> {
   const bearer = req.headers.get("authorization");
   const token = bearer?.startsWith("Bearer ")
     ? bearer.slice(7)
     : req.cookies.get(ACCESS_COOKIE)?.value;
-  if (!token) return null;
-  try {
-    const { sub } = await verifyAccessToken(token);
-    const [user] = await getDb().select().from(users).where(eq(users.id, sub)).limit(1);
-    if (!user || user.status !== "active") return null;
-    return { id: user.id, email: user.email, name: user.name };
-  } catch {
-    return null;
+  if (token) {
+    try {
+      const { sub } = await verifyAccessToken(token);
+      const [user] = await getDb().select().from(users).where(eq(users.id, sub)).limit(1);
+      if (user && user.status === "active") {
+        return { id: user.id, email: user.email, name: user.name };
+      }
+    } catch {
+      // 无效/过期令牌 → 落到本地单用户回落（dev）
+    }
   }
+  if (isLocalSingleUserMode()) return getOrCreateLocalUser();
+  return null;
 }
 
 export async function issueTokensFor(user: { id: string; email: string }) {

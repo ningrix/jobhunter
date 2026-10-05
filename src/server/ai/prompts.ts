@@ -157,6 +157,39 @@ export const PROMPTS: Record<string, (input: unknown) => string> = {
     ].join("\n");
   },
 
+  // V4.1 混合排序的 LLM Judge：在规则分基础上做综合评估（输出含给分依据，供溯源）
+  match_judge: (input) => {
+    const { resume, job, rule, semantic } = input as {
+      resume: ResumeContent;
+      job: { title: string; companyName: string; structured?: JobStructured | null };
+      rule: { totalScore: number; dimensionScores: Record<string, number>; gaps: { dimension: string; detail: string }[] };
+      semantic: { score: number; evidence: { jobChunk: string; resumeChunk: string; similarity: number }[] };
+    };
+    return [
+      "你是求职匹配评估官。在规则评分（已定，不要按公式重算）的基础上，结合语义相似证据与简历/职位信息，给出 0-100 的综合匹配分与结构化解读。你应补充规则覆盖不到的维度：经历方向、项目相关性、职业发展轨迹。只输出 JSON：",
+      `{
+  "score": 0到100的整数,
+  "summary": "2-3 句评估总结",
+  "strengths": ["优势点"],
+  "gaps": ["差距点"],
+  "risks": ["风险提示"],
+  "reasons": ["给分依据，逐条一句话"]
+}`,
+      "硬性约束：只能基于给定信息评估，严禁编造简历中不存在的经历、技能或数字。",
+      "",
+      "规则评分结果：",
+      JSON.stringify(rule),
+      "语义相似度（0-100）与最佳命中段落：",
+      JSON.stringify(semantic),
+      "",
+      "简历技能：" + resume.skills.join("、"),
+      "简历经历年限概述：" + JSON.stringify(resume.experience?.map((e) => ({ title: e.title, start: e.start, end: e.end }))),
+      "",
+      "目标职位：" + job.companyName + " - " + job.title,
+      "职位技能要求：" + (job.structured?.skills ?? []).map((s) => s.name).join("、"),
+    ].join("\n");
+  },
+
   // V3.3 职位雷达：从公开列表页文本抽取真实招聘条目（防编造是硬约束）
   radar_extract: (input) => {
     const { pageText, sourceName, conditions } = input as {

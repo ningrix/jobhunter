@@ -110,6 +110,37 @@ export interface MatchExplanation {
   risks: string[];
 }
 
+// ———— V4.1 混合排序：Match Score = w1·语义相似 + w2·规则分 + w3·LLM Judge ————
+
+/** 混合权重（评分器内部归一化；缺省/非法维度回落默认 0.4/0.3/0.3，全 0 回落默认） */
+export interface HybridWeights {
+  semantic: number;
+  rule: number;
+  judge: number;
+}
+
+/** 语义证据：命中段落引用（job chunk × resume chunk 的最佳相似对） */
+export interface SemanticChunkEvidence {
+  jobChunk: string;
+  resumeChunk: string;
+  similarity: number; // 0-1
+}
+
+/** 混合排序明细（持久化在 job_matches.hybrid_scores；null = 未启用语义层） */
+export interface HybridScores {
+  semantic: { score: number; evidence: SemanticChunkEvidence[] };
+  rule: number;
+  judge: { score: number; reasons: string[] };
+  weights: HybridWeights;
+  totalScore: number;
+}
+
+/** V4.1 LLM Judge 输出：给分 + 结构化解读（兼容 MatchExplanation）+ 逐条给分依据 */
+export interface MatchJudgeResult extends MatchExplanation {
+  score: number;
+  reasons: string[];
+}
+
 // —— 简历 AI 优化 ——
 
 export interface ResumeSuggestion {
@@ -176,6 +207,7 @@ export type TaskType =
   | "parse_jd"
   | "optimize_resume"
   | "match_analysis"
+  | "match_semantic" // V4.1：混合排序（embed 语义 + 规则 + LLM Judge），回写混合总分与明细
   | "tailor_resume"
   | "radar_search"; // V3.3：职位雷达（抓公开页 → AI 结构化抽取 → 去重入库）
 

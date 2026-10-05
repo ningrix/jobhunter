@@ -69,6 +69,15 @@ export const profileSchema = z.object({
   education: z.string().max(20).nullish(),
   skills: z.array(z.string().max(50)).max(50).nullish(),
   matchWeights: matchWeightsSchema.nullish(),
+  // —— V4.1 语义层：开关 + 混合权重（w1·语义 + w2·规则 + w3·Judge） ——
+  semanticMatchEnabled: z.boolean().nullish(),
+  hybridWeights: z
+    .object({
+      semantic: z.number().min(0).max(1),
+      rule: z.number().min(0).max(1),
+      judge: z.number().min(0).max(1),
+    })
+    .nullish(),
 });
 
 // —— 职位 ——

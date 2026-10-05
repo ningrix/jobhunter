@@ -4,8 +4,11 @@ import { aiTasks, jobMatches, jobs, resumeAnalyses, resumeFiles, resumeVersions 
 import { AppError, ErrorCode } from "@/shared/errors";
 import { markParseFailed } from "@/server/core/resume-service";
 import type {
+  HybridScores,
+  HybridWeights,
   JobStructured,
   MatchExplanation,
+  MatchJudgeResult,
   ResumeAnalysisResult,
   ResumeContent,
   ResumeTailorResult,
@@ -267,5 +270,78 @@ export const taskHandlers: Record<TaskType, TaskHandler> = {
         .where(eq(jobMatches.id, matchId));
     }
     return { analysis: result, provider: meta.provider, model: meta.model };
+  },
+
+  // V4.1 混合排序：embed 语义 + 规则分 + LLM Judge → 回写混合总分、明细与可解释证据
+  match_semantic: async (input, task, ctx) => {
+    if (!task.userId) throw new AppError(ErrorCode.VALIDATION, "语义匹配任务缺少用户上下文");
+    const matchId = input.matchId as string;
+    const resumeId = input.resumeId as string;
+    const jobId = input.jobId as string;
+    const resume = input.resume as ResumeContent;
+    const job = input.job as { title: string; companyName: string; structured?: JobStructured | null };
+    const rule = input.rule as {
+      totalScore: number;
+      dimensionScores: Record<string, number>;
+      gaps: { dimension: string; detail: string }[];
+    };
+
+    await ctx.report(10, "生成简历与职位向量");
+    const { chunkResumeContent, chunkJobForEmbedding, embedOwnerChunks } = await import(
+      "@/server/ai/embedding-service"
+    );
+    const { semanticScore, hybridTotal } = await import("@/server/core/hybrid-ranking");
+    const resumeVecs = await embedOwnerChunks(
+      task.userId,
+      "resume",
+      resumeId,
+      chunkResumeContent(resume),
+    );
+    const jobVecs = await embedOwnerChunks(task.userId, "job", jobId, chunkJobForEmbedding(job));
+
+    await ctx.report(55, "计算语义相似度");
+    const sem = semanticScore(jobVecs.vectors, resumeVecs.vectors);
+
+    await ctx.report(70, "LLM Judge 综合评估");
+    const { result: judge, meta } = await runAI<MatchJudgeResult>(
+      "match_judge",
+      {
+        resume,
+        job,
+        rule,
+        semantic: { score: sem.score, evidence: sem.evidence.slice(0, 3) },
+      },
+      { userId: task.userId, taskId: task.id },
+    );
+
+    await ctx.report(85, "回写混合总分");
+    const { totalScore, weights } = hybridTotal({
+      semantic: sem.score,
+      rule: rule.totalScore,
+      judge: judge.score,
+      weights: (input.hybridWeights as HybridWeights | undefined) ?? null,
+    });
+    const hybridScores: HybridScores = {
+      semantic: { score: sem.score, evidence: sem.evidence.slice(0, 5) },
+      rule: rule.totalScore,
+      judge: { score: judge.score, reasons: judge.reasons },
+      weights,
+      totalScore,
+    };
+    await getDb()
+      .update(jobMatches)
+      .set({
+        totalScore,
+        hybridScores,
+        summary: judge.summary,
+        aiExplanation: {
+          summary: judge.summary,
+          strengths: judge.strengths,
+          gaps: judge.gaps,
+          risks: judge.risks,
+        },
+      })
+      .where(eq(jobMatches.id, matchId));
+    return { totalScore, hybridScores, provider: meta.provider, model: meta.model };
   },
 };

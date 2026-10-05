@@ -110,6 +110,67 @@ export async function runAI<T>(
   throw new AppError(ErrorCode.AI_PROVIDER_ERROR, message);
 }
 
+/** token → 人民币成本以外的向量入口：供语义层使用，计量口径与 runAI 一致（scene=embed） */
+export async function embedText(
+  userId: string | null,
+  text: string,
+  opts: { taskId?: string | null } = {},
+): Promise<{ vector: number[]; model: string }> {
+  const provider = await getProvider(userId);
+  if (!provider.embed) {
+    throw new AppError(
+      ErrorCode.AI_PROVIDER_ERROR,
+      `当前模型（${provider.name}/${provider.model}）不支持向量（embedding），无法使用语义匹配`,
+    );
+  }
+  const started = Date.now();
+  try {
+    const out = await provider.embed(text);
+    await logUsage({
+      userId,
+      taskId: opts.taskId ?? null,
+      meta: {
+        content: "",
+        provider: provider.name,
+        model: out.model,
+        promptTokens: Math.max(1, Math.ceil(text.length / 2)),
+        completionTokens: 0,
+        durationMs: Date.now() - started,
+      },
+      scene: "embed",
+      error: null,
+    });
+    return out;
+  } catch (e) {
+    const meta: RunAIMeta = {
+      content: "",
+      provider: provider.name,
+      model: provider.embedModel ?? provider.model,
+      promptTokens: 0,
+      completionTokens: 0,
+      durationMs: Date.now() - started,
+    };
+    await logUsage({
+      userId,
+      taskId: opts.taskId ?? null,
+      meta,
+      scene: "embed",
+      error: e instanceof Error ? e.message : String(e),
+    }).catch(() => undefined);
+    throw new AppError(
+      ErrorCode.AI_PROVIDER_ERROR,
+      `embedding 调用失败: ${e instanceof Error ? e.message : String(e)}`,
+    );
+  }
+}
+
+/** 当前用户（或 env 默认）Provider 的向量模型名；不支持 embed 返回 null（缓存定位与开关判断用） */
+export async function getEmbedModel(userId: string | null): Promise<string | null> {
+  const provider = await getProvider(userId);
+  if (!provider.embed) return null;
+  return provider.embedModel ?? provider.model;
+}
+
 async function logUsage(args: {
   userId: string | null;
   taskId: string | null;

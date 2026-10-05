@@ -15,6 +15,8 @@ import type {
   MatchReason,
   MatchExplanation,
   MatchWeights,
+  HybridScores,
+  HybridWeights,
   ResumeSuggestion,
   DeliveryPolicyRules,
 } from "@/shared/types";
@@ -60,6 +62,10 @@ export const userProfiles = sqliteTable("user_profiles", {
   skills: text("skills", { mode: "json" }).$type<string[]>().notNull().default([]),
   /** 匹配权重向量（用户可调，0-10；null = 系统默认权重） */
   matchWeights: text("match_weights", { mode: "json" }).$type<MatchWeights>(),
+  /** V4.1 语义层开关：开启后匹配走混合排序（语义+规则+LLM Judge），默认关（纯规则，向后兼容） */
+  semanticMatchEnabled: integer("semantic_match_enabled", { mode: "boolean" }).notNull().default(false),
+  /** V4.1 混合权重 w1·语义 + w2·规则 + w3·Judge；null = 默认 0.4/0.3/0.3 */
+  hybridWeights: text("hybrid_weights", { mode: "json" }).$type<HybridWeights>(),
   updatedAt: updatedAt(),
 });
 
@@ -254,6 +260,8 @@ export const jobMatches = sqliteTable(
     reasons: text("reasons", { mode: "json" }).$type<MatchReason[]>().notNull().default([]),
     summary: text("summary"),
     aiExplanation: text("ai_explanation", { mode: "json" }).$type<MatchExplanation>(),
+    /** V4.1 混合排序明细：语义分+段落证据 / 规则分 / Judge 分+理由 / 权重；null = 未启用语义层 */
+    hybridScores: text("hybrid_scores", { mode: "json" }).$type<HybridScores>(),
     taskId: text("task_id"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),

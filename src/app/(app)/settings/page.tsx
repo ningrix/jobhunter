@@ -18,6 +18,8 @@ interface ProfileView {
   salaryMax: number | null;
   experienceYears: number | null;
   education: string | null;
+  semanticMatchEnabled?: boolean | null;
+  hybridWeights?: { semantic: number; rule: number; judge: number } | null;
 }
 
 interface PolicyView {
@@ -89,6 +91,11 @@ export default function SettingsPage() {
     education: "",
   });
   const [condSaving, setCondSaving] = useState(false);
+  const [semantic, setSemantic] = useState({
+    enabled: false,
+    weights: { semantic: 0.4, rule: 0.3, judge: 0.3 },
+  });
+  const [semSaving, setSemSaving] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -125,6 +132,10 @@ export default function SettingsPage() {
               ? (String(pol.rules.maxExperienceYears) as Conditions["experience"])
               : "",
           education: (pol?.rules?.education as Conditions["education"]) || "",
+        });
+        setSemantic({
+          enabled: prof.semanticMatchEnabled === true,
+          weights: prof.hybridWeights ?? { semantic: 0.4, rule: 0.3, judge: 0.3 },
         });
       } catch {
         // 条件读取失败不阻塞设置页
@@ -166,6 +177,24 @@ export default function SettingsPage() {
       toast(e instanceof Error ? e.message : "保存条件失败", "error");
     } finally {
       setCondSaving(false);
+    }
+  }
+
+  async function saveSemantic() {
+    setSemSaving(true);
+    try {
+      await api("/users/me/profile", {
+        method: "PATCH",
+        body: {
+          semanticMatchEnabled: semantic.enabled,
+          hybridWeights: semantic.weights,
+        },
+      });
+      toast(semantic.enabled ? "语义匹配已开启：新计算的匹配将使用混合排序" : "语义匹配已关闭：回落纯规则评分");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "保存语义匹配设置失败", "error");
+    } finally {
+      setSemSaving(false);
     }
   }
 
@@ -360,6 +389,65 @@ export default function SettingsPage() {
         <div className="mt-4">
           <Button onClick={saveConditions} disabled={condSaving}>
             {condSaving ? "保存中…" : "保存求职条件"}
+          </Button>
+        </div>
+      </Card>
+
+      <Card className="p-5">
+        <CardTitle right={<span className="text-[11px] text-t3">V4.1 · 默认关闭</span>}>
+          语义匹配引擎
+        </CardTitle>
+
+        <div className="space-y-4">
+          <label className="flex w-fit cursor-pointer items-center gap-2 text-sm text-t2">
+            <input
+              type="checkbox"
+              checked={semantic.enabled}
+              onChange={(e) => setSemantic({ ...semantic, enabled: e.target.checked })}
+              className="h-4 w-4"
+            />
+            开启混合排序（语义向量 + 规则评分 + LLM Judge）
+          </label>
+
+          <div className={semantic.enabled ? "space-y-3" : "pointer-events-none space-y-3 opacity-50"}>
+            {(
+              [
+                ["semantic", "语义相似"],
+                ["rule", "规则评分"],
+                ["judge", "AI Judge"],
+              ] as const
+            ).map(([key, label]) => (
+              <div key={key} className="flex items-center gap-3">
+                <span className="w-20 shrink-0 text-[13px] text-t2">{label}</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={semantic.weights[key]}
+                  onChange={(e) =>
+                    setSemantic({
+                      ...semantic,
+                      weights: { ...semantic.weights, [key]: Number(e.target.value) },
+                    })
+                  }
+                  className="h-1.5 flex-1 accent-[var(--primary)]"
+                />
+                <span className="w-24 shrink-0 text-right text-[12px] text-t3">
+                  原始 {semantic.weights[key].toFixed(2)}
+                </span>
+              </div>
+            ))}
+            <p className="text-[11.5px] text-t3">
+              权重按三者之和归一化后生效；开启后新计算的匹配回写混合总分（子分与语义命中段落可溯源），
+              语义关闭的职位匹配保持纯规则分不变。
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <Button onClick={saveSemantic} disabled={semSaving}>
+            {semSaving ? "保存中…" : "保存语义匹配设置"}
           </Button>
         </div>
       </Card>

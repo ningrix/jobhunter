@@ -2,10 +2,12 @@ import { AppError, ErrorCode } from "@/shared/errors";
 import type {
   JobStructured,
   KeywordCoverage,
+  MatchJudgeResult,
   MatchExplanation,
   ResumeAnalysisResult,
   ResumeContent,
   ResumeTailorResult,
+  SemanticChunkEvidence,
   TailorGap,
 } from "@/shared/types";
 import { totalExperienceYears } from "@/server/core/match-scorer";
@@ -29,6 +31,8 @@ export interface ChatResult {
 export interface AIProvider {
   readonly name: string;
   readonly model: string;
+  /** 向量模型名（embedding 缓存按 owner+model 定位）；未实现 embed 的 Provider 为 undefined */
+  readonly embedModel?: string;
   chat(req: ChatRequest): Promise<ChatResult>;
   embed?(text: string): Promise<{ vector: number[]; model: string }>;
 }
@@ -96,6 +100,7 @@ function estTokens(text: string): number {
 export class MockProvider implements AIProvider {
   readonly name = "mock";
   readonly model = "mock-1";
+  readonly embedModel = "mock-embed-1";
 
   async chat(req: ChatRequest): Promise<ChatResult> {
     const input = req.input as Record<string, unknown>;
@@ -120,6 +125,16 @@ export class MockProvider implements AIProvider {
             };
             resume: ResumeContent;
             job: { title: string; companyName: string; structured?: JobStructured | null };
+          },
+        );
+        break;
+      case "match_judge":
+        result = mockMatchJudge(
+          input as {
+            resume: ResumeContent;
+            job: { title: string; companyName: string; structured?: JobStructured | null };
+            rule: { totalScore: number; dimensionScores: Record<string, number>; gaps: { dimension: string; detail: string }[] };
+            semantic: { score: number; evidence: SemanticChunkEvidence[] };
           },
         );
         break;
@@ -332,6 +347,33 @@ function mockMatchAnalysis(input: {
         : `你与 ${job.companyName} 的 ${job.title} 岗位匹配度偏低，建议谨慎投递或先补强核心技能。`;
 
   return { summary, strengths, gaps, risks };
+}
+
+/**
+ * V4.1 LLM Judge（确定性 Mock）：综合分 = 0.5·规则分 + 0.2·技能维度 + 0.3·语义相似，
+ * 对规则分与语义分单调——评测集（NDCG）依赖此确定性；解读复用 mockMatchAnalysis。
+ */
+export function mockMatchJudge(input: {
+  resume: ResumeContent;
+  job: { title: string; companyName: string; structured?: JobStructured | null };
+  rule: { totalScore: number; dimensionScores: Record<string, number>; gaps: { dimension: string; detail: string }[] };
+  semantic: { score: number; evidence: SemanticChunkEvidence[] };
+}): MatchJudgeResult {
+  void input.resume;
+  const { rule, semantic } = input;
+  const skills = rule.dimensionScores.skills ?? rule.totalScore;
+  const score =
+    Math.round((0.5 * rule.totalScore + 0.2 * skills + 0.3 * semantic.score) * 10) / 10;
+  const explanation: MatchExplanation = mockMatchAnalysis(input);
+  return {
+    score,
+    reasons: [
+      `规则评分 ${rule.totalScore} 分（技能维度 ${Math.round(skills)}）`,
+      `语义相似度 ${semantic.score} 分（简历经历方向与 JD 词面重合度）`,
+      skills >= 80 ? "核心技能覆盖充分" : "部分核心技能未命中，需按差距清单补齐",
+    ],
+    ...explanation,
+  };
 }
 
 /**

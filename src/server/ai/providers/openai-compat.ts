@@ -35,12 +35,17 @@ function envConfig(): OpenAIConfig {
 export class OpenAICompatProvider implements AIProvider {
   readonly name = "openai";
   readonly model: string;
+  readonly embedModel: string;
   private readonly override?: OpenAICompatOverride;
 
   constructor(override?: OpenAICompatOverride) {
     this.override = override;
     this.model =
       override?.model ?? process.env.AI_OPENAI_MODEL ?? "gpt-4o-mini";
+    this.embedModel =
+      override?.embedModel ??
+      process.env.AI_OPENAI_EMBED_MODEL ??
+      "text-embedding-3-small";
   }
 
   private config(): OpenAIConfig {

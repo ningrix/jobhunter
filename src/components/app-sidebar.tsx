@@ -36,7 +36,17 @@ const GROUPS = [
 ] as const;
 
 /** 侧栏主体：桌面常驻侧栏与移动端抽屉共用同一份内容 */
-function SidebarBody({ name, email, onClose }: { name: string; email: string; onClose?: () => void }) {
+function SidebarBody({
+  name,
+  email,
+  onClose,
+  showLogout = true,
+}: {
+  name: string;
+  email: string;
+  onClose?: () => void;
+  showLogout?: boolean;
+}) {
   const pathname = usePathname();
 
   return (
@@ -109,13 +119,21 @@ function SidebarBody({ name, email, onClose }: { name: string; email: string; on
           <p className="truncate text-[10.5px] text-t3">{email}</p>
         </div>
         <ThemeToggle />
-        <LogoutButton />
+        {showLogout && <LogoutButton />}
       </div>
     </>
   );
 }
 
-export function AppSidebar({ name, email }: { name: string; email: string }) {
+export function AppSidebar({
+  name,
+  email,
+  showLogout = true,
+}: {
+  name: string;
+  email: string;
+  showLogout?: boolean;
+}) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
@@ -146,7 +164,7 @@ export function AppSidebar({ name, email }: { name: string; email: string }) {
     <>
       {/* 桌面常驻侧栏（md 及以上） */}
       <aside className="sticky top-0 z-20 hidden h-screen w-[232px] shrink-0 flex-col border-r border-border bg-surface md:flex">
-        <SidebarBody name={name} email={email} />
+        <SidebarBody name={name} email={email} showLogout={showLogout} />
       </aside>
 
       {/* 移动端顶栏（md 以下）：汉堡入口 */}
@@ -171,7 +189,7 @@ export function AppSidebar({ name, email }: { name: string; email: string }) {
         <div className="fixed inset-0 z-40 md:hidden" role="dialog" aria-modal="true" aria-label="导航菜单">
           <div className="absolute inset-0 bg-scrim" onClick={() => setOpen(false)} />
           <aside className="absolute inset-y-0 left-0 flex h-full w-[272px] max-w-[85vw] flex-col border-r border-border bg-surface">
-            <SidebarBody name={name} email={email} onClose={() => setOpen(false)} />
+            <SidebarBody name={name} email={email} onClose={() => setOpen(false)} showLogout={showLogout} />
           </aside>
         </div>
       )}

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Briefcase, FileText, Plus, Search, Sparkles, Star, Target } from "lucide-react";
+import { Briefcase, FileText, Plus, Radar, Search, Sparkles, Star, Target } from "lucide-react";
 import { api, waitForTask } from "@/lib/client";
 import { Modal } from "@/components/modal";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,11 @@ interface MatchRow {
   jobId: string;
   resumeId: string;
   totalScore: number;
+  hybridScores?: {
+    semantic: { score: number };
+    rule: number;
+    judge: { score: number };
+  } | null;
 }
 
 interface ResumeOption {
@@ -64,6 +69,11 @@ export default function JobsPage() {
   const [salaryMax, setSalaryMax] = useState("");
   const [structured, setStructured] = useState<JobStructured | null>(null);
   const [msg, setMsg] = useState("");
+
+  // 职位雷达：一键扫描公开职位页自动入库（无需逐条复制粘贴）
+  const [radarBusy, setRadarBusy] = useState(false);
+  const [radarMsg, setRadarMsg] = useState("");
+  const [radarErr, setRadarErr] = useState(false);
 
   async function load() {
     try {
@@ -153,6 +163,34 @@ export default function JobsPage() {
     setMsg("");
   }
 
+  async function runRadar() {
+    setRadarBusy(true);
+    setRadarErr(false);
+    setRadarMsg("扫描中：抓取公开招聘页 → AI 结构化抽取 → 去重入库…");
+    try {
+      const { taskId } = await api<{ taskId: string }>("/radar/run", { method: "POST" });
+      const task = await waitForTask(taskId, 120_000);
+      const s = (task.output?.summary ?? null) as
+        | { importedTotal?: number; duplicatesTotal?: number; sites?: { siteName: string; error?: string }[] }
+        | null;
+      if (!s) {
+        setRadarMsg("扫描完成");
+      } else {
+        const errs = (s.sites ?? []).filter((x) => x.error).map((x) => `${x.siteName}：${x.error!.slice(0, 70)}`);
+        setRadarMsg(
+          `扫描完成：新入库 ${s.importedTotal ?? 0} 个职位，重复跳过 ${s.duplicatesTotal ?? 0} 个` +
+            (errs.length ? `。失败原因：${errs.join("；")}` : ""),
+        );
+      }
+      await load();
+    } catch (e) {
+      setRadarErr(true);
+      setRadarMsg(e instanceof Error ? e.message : "扫描失败");
+    } finally {
+      setRadarBusy(false);
+    }
+  }
+
   async function toggleFav(job: JobRow) {
     await api(`/jobs/${job.id}/favorite`, { method: "POST" });
     await load();
@@ -166,10 +204,43 @@ export default function JobsPage() {
     setBusy("match");
     setMatchResult("");
     try {
-      const { match } = await api<{ match: MatchRow }>("/matches", {
+      const { match, taskId } = await api<{ match: MatchRow; taskId: string | null }>("/matches", {
         method: "POST",
         body: { jobId: matchJob!.id, resumeId: matchResume, useAI: false },
       });
+      // V4.1 语义层开启时返回异步任务：轮询到终态后刷新混合总分与明细
+      if (taskId) {
+        setMatchResult("语义匹配计算中（向量 → 相似度 → AI Judge）…");
+        let done = false;
+        for (let i = 0; i < 60; i++) {
+          await new Promise((r) => setTimeout(r, 1000));
+          const t = await api<{ status: string; error: string | null }>(`/ai-tasks/${taskId}`);
+          if (t.status === "succeeded") {
+            done = true;
+            break;
+          }
+          if (t.status === "failed") {
+            setMatchResult(`语义匹配失败：${t.error ?? "任务执行出错"}（已保留规则分）`);
+            return;
+          }
+        }
+        if (!done) {
+          setMatchResult("语义匹配仍在执行，可稍后在匹配记录中查看结果");
+          return;
+        }
+        await load();
+        const list = await api<MatchRow[]>(`/matches?jobId=${match.jobId}`);
+        const fresh = list
+          .filter((x) => x.resumeId === match.resumeId)
+          .sort((a, b) => b.totalScore - a.totalScore)[0];
+        const hs = fresh?.hybridScores;
+        setMatchResult(
+          hs
+            ? `混合匹配 ${Math.round(fresh.totalScore)} 分（语义 ${Math.round(hs.semantic.score)} · 规则 ${Math.round(hs.rule)} · Judge ${Math.round(hs.judge.score)}），已保存到匹配记录`
+            : `匹配得分 ${Math.round(fresh?.totalScore ?? match.totalScore)} 分，已保存到匹配记录`,
+        );
+        return;
+      }
       setMatchResult(`匹配得分 ${match.totalScore} 分，已保存到匹配记录`);
       await load();
     } catch (e) {
@@ -188,12 +259,18 @@ export default function JobsPage() {
     <div className="space-y-5">
       <PageHeader
         title="职位中心"
-        desc="粘贴 JD 自动结构化建档，一键匹配你的简历"
+        desc="雷达一键扫描公开职位自动入库 · 粘贴 JD 自动结构化建档"
         right={
-          <Button onClick={() => setShowAdd(true)}>
-            <Plus />
-            粘贴 JD 添加职位
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="soft" onClick={runRadar} disabled={radarBusy} title="扫描公开职位页并自动入库">
+              <Radar className={radarBusy ? "animate-spin" : ""} />
+              {radarBusy ? "扫描中…" : "雷达扫描"}
+            </Button>
+            <Button onClick={() => setShowAdd(true)}>
+              <Plus />
+              粘贴 JD 添加职位
+            </Button>
+          </div>
         }
       />
 
@@ -214,6 +291,22 @@ export default function JobsPage() {
       </div>
       {error && (
         <p className="rounded-[10px] border border-danger-border bg-danger-soft px-3.5 py-2.5 text-sm text-danger">{error}</p>
+      )}
+      {radarMsg && (
+        <div
+          className={`flex flex-wrap items-center gap-2 rounded-[10px] border px-3.5 py-2.5 text-sm ${
+            radarErr
+              ? "border-warn-border bg-warn-soft text-warn"
+              : "border-primary-soft-border bg-primary-soft text-primary"
+          }`}
+        >
+          <span>{radarMsg}</span>
+          {radarErr && (
+            <Link href="/settings" className="font-semibold underline underline-offset-2">
+              去设置自备模型 →
+            </Link>
+          )}
+        </div>
       )}
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -297,9 +390,9 @@ export default function JobsPage() {
         {list.length === 0 && (
           <Card className="lg:col-span-2">
             <EmptyState
-              icon={Briefcase}
+              icon={Radar}
               title="暂无职位"
-              hint="点击右上角「粘贴 JD 添加职位」，系统会自动结构化录入"
+              hint="点右上角「雷达扫描」自动抓取公开招聘页入库（需在设置页配置自备模型）；也可粘贴 JD 手动添加"
             />
           </Card>
         )}

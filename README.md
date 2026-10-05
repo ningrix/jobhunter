@@ -14,7 +14,7 @@
 <p align="center">
   <img alt="Next.js 15" src="https://img.shields.io/badge/Next.js-15-black">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-strict-blue">
-  <img alt="tests" src="https://img.shields.io/badge/tests-305%20passing-brightgreen">
+  <img alt="tests" src="https://img.shields.io/badge/tests-319%20passing-brightgreen">
   <img alt="ci" src="https://img.shields.io/badge/CI-GitHub%20Actions-blue">
   <img alt="license" src="https://img.shields.io/badge/license-MIT-green">
   <img alt="safety" src="https://img.shields.io/badge/agent-Human--in--the--loop-orange">
@@ -66,6 +66,8 @@ npm install && npm run db:seed && npm run dev   # http://localhost:3000
 邮箱：demo@jobhunter.cn
 密码：demo12345
 ```
+
+> **本地单用户模式（开箱即用）**：`npm run dev` 本地开发默认免登录，启动后直接进入工作台（自动创建本地用户）。如需体验注册/登录流程，在 `.env` 设置 `AUTH_MODE=login` 即可恢复；生产部署始终强制登录。
 
 已预置完整演示数据：1 份主简历、14 个职位、3 组预计算匹配、投递流水线（面试 / 已投递 / 想投）与提醒。
 

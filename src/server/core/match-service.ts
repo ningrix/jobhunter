@@ -85,7 +85,28 @@ export async function computeMatch(
   }
 
   let taskId: string | null = null;
-  if (input.useAI) {
+  if (profile.semanticMatchEnabled) {
+    // V4.1 语义层开启：规则分先落库占位，异步任务回写混合总分与明细（judge 同时产出 aiExplanation）
+    const task = await enqueueTask(userId, "match_semantic", {
+      matchId: match.id,
+      resumeId: input.resumeId,
+      jobId: input.jobId,
+      resume: content,
+      job: {
+        title: job.title,
+        companyName: job.companyName,
+        structured: job.structured,
+      },
+      rule: {
+        totalScore: rule.totalScore,
+        dimensionScores: rule.dimensionScores,
+        gaps: rule.gaps,
+      },
+      hybridWeights: profile.hybridWeights ?? undefined,
+    });
+    runTaskAsync(task.id);
+    taskId = task.id;
+  } else if (input.useAI) {
     const task = await enqueueTask(userId, "match_analysis", {
       matchId: match.id,
       resume: content,
