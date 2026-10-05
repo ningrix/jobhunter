@@ -1,7 +1,7 @@
 import { AppError, ErrorCode } from "@/shared/errors";
 import type { AiTaskRow } from "@/server/ai/runner";
 import { getProvider, runAI } from "@/server/ai/gateway";
-import { safeFetchText } from "@/lib/safe-fetch";
+import { safeFetchText, type SafeFetchOptions } from "@/lib/safe-fetch";
 import { logAgentEvent, newSessionId } from "@/server/agent/events";
 import { RADAR_SITES, type RadarSiteInfo } from "@/server/job-sources/core/site-catalog";
 import { importJobFromSource } from "@/server/job-sources/import-service";
@@ -75,7 +75,16 @@ async function requireRealProvider(userId: string): Promise<{ provider: string; 
   return { provider: provider.name, model: provider.model };
 }
 
-export async function runRadarSearch(userId: string, task: AiTaskRow): Promise<RadarRunSummary> {
+/** 测试注入用：本机代理 fake-ip DNS 会把真实域名解析到保留段触发 SSRF 拦截（safe-fetch 按设计），测试透传公网解析器 */
+export interface RadarRunOptions {
+  resolve?: SafeFetchOptions["resolve"];
+}
+
+export async function runRadarSearch(
+  userId: string,
+  task: AiTaskRow,
+  opts: RadarRunOptions = {},
+): Promise<RadarRunSummary> {
   const { provider, model } = await requireRealProvider(userId);
 
   // 条件：投递策略优先，profile 画像兜底（与「求职条件中心」的保存逻辑对应）
@@ -107,7 +116,7 @@ export async function runRadarSearch(userId: string, task: AiTaskRow): Promise<R
   };
 
   for (const site of RADAR_SITES) {
-    summary.sites.push(await scanSite(userId, task.id, sessionId, site, conditions, summary));
+    summary.sites.push(await scanSite(userId, task.id, sessionId, site, conditions, summary, opts));
   }
   return summary;
 }
@@ -124,6 +133,7 @@ async function scanSite(
     maxExperienceYears?: number;
   },
   summary: RadarRunSummary,
+  opts: RadarRunOptions,
 ): Promise<RadarSiteRun> {
   const run: RadarSiteRun = {
     siteId: site.id,
@@ -136,8 +146,8 @@ async function scanSite(
   };
 
   try {
-    // 1) 抓取公开列表页
-    const fetched = await safeFetchText(site.listUrl);
+    // 1) 抓取公开列表页（resolve 可注入：测试环境绕开本机 fake-ip DNS 误伤）
+    const fetched = await safeFetchText(site.listUrl, { resolve: opts.resolve });
     run.fetched = true;
     const raw = fetched.body;
     const pageText = htmlToText(raw).slice(0, 12_000);

@@ -14,6 +14,10 @@ describe("radar service", () => {
   let token: string;
   let userId: string;
 
+  // 本机代理 fake-ip DNS 会把真实域名解析到保留段（如 198.18.x.x），触发 safe-fetch SSRF 拦截（按设计）。
+  // 测试注入公网解析器，只绕开 DNS 环境差异，不放松任何 SSRF 校验本身。
+  const PUBLIC_RESOLVE = async (_host: string) => [{ address: "93.184.216.34" }];
+
   // 列表页：两条真实条目（其中一条城市不符），一条编造 URL 的假条目由服务端丢弃
   const LIST_HTML = `<html><body>
 <ul>
@@ -102,7 +106,7 @@ describe("radar service", () => {
     });
     stubFetch();
 
-    const summary = await runRadarSearch(userId, await task());
+    const summary = await runRadarSearch(userId, await task(), { resolve: PUBLIC_RESOLVE });
     expect(summary.importedTotal).toBe(1);
     expect(summary.sites[0].extracted).toBe(3);
     expect(summary.sites[0].filtered).toBe(2); // 编造 URL 1 条 + 城市不符 1 条
@@ -117,8 +121,8 @@ describe("radar service", () => {
 
   it("重复扫描：三级去重生效，不重复入库", async () => {
     stubFetch();
-    await runRadarSearch(userId, await task());
-    const second = await runRadarSearch(userId, await task());
+    await runRadarSearch(userId, await task(), { resolve: PUBLIC_RESOLVE });
+    const second = await runRadarSearch(userId, await task(), { resolve: PUBLIC_RESOLVE });
     expect(second.importedTotal).toBe(0);
     // 首轮入库的 2 条（上海+北京均入，本用例未设城市条件）二扫全部命中去重
     expect(second.duplicatesTotal).toBe(2);
