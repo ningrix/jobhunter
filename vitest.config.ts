@@ -3,6 +3,8 @@ import path from "node:path";
 
 export default defineConfig({
   resolve: { alias: { "@": path.resolve(process.cwd(), "src") } },
+  // 组件 .tsx 无头渲染（自动 JSX 运行时，与 Next 构建一致）；不影响 Next 自身构建
+  esbuild: { jsx: "automatic" },
   test: {
     environment: "node",
     include: ["src/**/*.test.ts"],

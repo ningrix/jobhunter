@@ -229,6 +229,8 @@ export const RESUME_TEMPLATE_IDS = [
   "minimal",
   "professional",
   "student",
+  "elegant", // V4.2 移植：Reactive-Resume 双栏侧栏设计（MIT）
+  "timeline", // V4.2 移植：rendercv 学术式时间线（MIT）
 ] as const;
 
 export type ResumeTemplateId = (typeof RESUME_TEMPLATE_IDS)[number];

@@ -3,6 +3,8 @@ import type { ResumeTemplateId } from "@/shared/types";
 /**
  * 模板 spec：预览（HTML）与导出共享的唯一视觉真源。
  * 借鉴 Reactive Resume 的「内容 × 样式 token 分离」思想（MIT，仅借鉴设计，不复制代码）。
+ * V4.2 移植：elegant（双栏侧栏，移植 Reactive-Resume artboard + 猫步简历中文排印思想）
+ * 与 timeline（日期右对齐学术式，移植 rendercv 风格）——均为 MIT 项目，仅借鉴布局设计，实现为本项目原创 JSX。
  */
 export interface TemplateSpec {
   id: ResumeTemplateId;
@@ -17,6 +19,10 @@ export interface TemplateSpec {
   bullet: string;
   /** 区块顺序：student 模板教育背景前置 */
   sectionOrder: ("summary" | "skills" | "experience" | "projects" | "education")[];
+  /** 布局：单栏（默认）或双栏侧栏 */
+  layout: "single" | "sidebar";
+  /** sidebar 布局下放入侧栏的区块（其余按 sectionOrder 走主栏）；页眉固定在侧栏顶部 */
+  sidebarSections?: ("skills" | "education")[];
 }
 
 export const RESUME_TEMPLATES: Record<ResumeTemplateId, TemplateSpec> = {
@@ -31,6 +37,7 @@ export const RESUME_TEMPLATES: Record<ResumeTemplateId, TemplateSpec> = {
     divider: "border",
     bullet: "•",
     sectionOrder: ["summary", "skills", "experience", "projects", "education"],
+    layout: "single",
   },
   modern: {
     id: "modern",
@@ -43,6 +50,7 @@ export const RESUME_TEMPLATES: Record<ResumeTemplateId, TemplateSpec> = {
     divider: "accent",
     bullet: "▸",
     sectionOrder: ["summary", "skills", "experience", "projects", "education"],
+    layout: "single",
   },
   minimal: {
     id: "minimal",
@@ -55,6 +63,7 @@ export const RESUME_TEMPLATES: Record<ResumeTemplateId, TemplateSpec> = {
     divider: "none",
     bullet: "·",
     sectionOrder: ["summary", "experience", "projects", "education", "skills"],
+    layout: "single",
   },
   professional: {
     id: "professional",
@@ -67,6 +76,7 @@ export const RESUME_TEMPLATES: Record<ResumeTemplateId, TemplateSpec> = {
     divider: "accent",
     bullet: "•",
     sectionOrder: ["summary", "experience", "skills", "projects", "education"],
+    layout: "single",
   },
   student: {
     id: "student",
@@ -79,6 +89,34 @@ export const RESUME_TEMPLATES: Record<ResumeTemplateId, TemplateSpec> = {
     divider: "accent",
     bullet: "•",
     sectionOrder: ["education", "experience", "projects", "skills", "summary"],
+    layout: "single",
+  },
+  elegant: {
+    id: "elegant",
+    name: "Elegant 双栏",
+    description: "主色侧栏（页眉/技能/教育）+ 主栏经历，信息分区清晰",
+    headerAlign: "left",
+    nameCls: "text-2xl font-bold",
+    sectionTitleCls: "text-sm font-bold uppercase tracking-wider",
+    accentTarget: "section",
+    divider: "accent",
+    bullet: "▪",
+    sectionOrder: ["summary", "experience", "projects"],
+    layout: "sidebar",
+    sidebarSections: ["skills", "education"],
+  },
+  timeline: {
+    id: "timeline",
+    name: "Timeline 学术",
+    description: "日期右对齐、经历前置的紧凑学术式",
+    headerAlign: "left",
+    nameCls: "text-2xl font-bold tracking-wide",
+    sectionTitleCls: "text-xs font-bold uppercase tracking-[0.25em]",
+    accentTarget: "section",
+    divider: "accent",
+    bullet: "—",
+    sectionOrder: ["experience", "projects", "education", "skills", "summary"],
+    layout: "single",
   },
 };
 

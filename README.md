@@ -14,7 +14,7 @@
 <p align="center">
   <img alt="Next.js 15" src="https://img.shields.io/badge/Next.js-15-black">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-strict-blue">
-  <img alt="tests" src="https://img.shields.io/badge/tests-319%20passing-brightgreen">
+  <img alt="tests" src="https://img.shields.io/badge/tests-326%20passing-brightgreen">
   <img alt="ci" src="https://img.shields.io/badge/CI-GitHub%20Actions-blue">
   <img alt="license" src="https://img.shields.io/badge/license-MIT-green">
   <img alt="safety" src="https://img.shields.io/badge/agent-Human--in--the--loop-orange">

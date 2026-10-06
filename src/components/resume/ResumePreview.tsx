@@ -157,6 +157,71 @@ export function ResumePreview({
 
   const headerAccent = spec.accentTarget === "name" || spec.accentTarget === "both" ? accent : undefined;
 
+  // —— 双栏侧栏布局（elegant）：页眉+侧栏区块在左，主栏区块在右 ——
+  // 打印安全：侧栏用 div（全局 @media print 隐藏 aside）；底色为 6% 透明度主色，被打印引擎剥落后仍有 accent 边框保结构
+  if (spec.layout === "sidebar") {
+    const sidebarBlocks = (spec.sidebarSections ?? [])
+      .map((key) => sections[key as TemplateSpecSection])
+      .filter(Boolean);
+    const mainBlocks = spec.sectionOrder
+      .map((key) => sections[key as TemplateSpecSection])
+      .filter(Boolean);
+    return (
+      <div
+        id="resume-print-root"
+        className={`${fontCls} grid bg-white text-slate-900`}
+        style={{ width: 794, minHeight: 1123, gridTemplateColumns: "264px 1fr" }}
+      >
+        <div className="p-7" style={{ backgroundColor: `${accent}0F`, borderRight: `2px solid ${accent}` }}>
+          <p className="text-xl font-bold" style={{ color: accent }}>
+            {name}
+          </p>
+          {titleLine && <p className="mt-1 text-[12px] font-medium text-slate-600">{titleLine}</p>}
+          {contactLine && (
+            <div className="mt-3 space-y-0.5">
+              {contactLine
+                .split("  ·  ")
+                .filter(Boolean)
+                .map((c, i) => (
+                  <p key={i} className="text-[11.5px] text-slate-500">
+                    {c}
+                  </p>
+                ))}
+            </div>
+          )}
+          <div className="mt-6 space-y-5">
+            {sidebarBlocks.map(
+              (s) =>
+                s && (
+                  <section key={s.title}>
+                    <h2 className={`${spec.sectionTitleCls} ${dividerCls}`} style={sectionTitleStyle}>
+                      {s.title}
+                    </h2>
+                    <div className="mt-1.5">{s.body}</div>
+                  </section>
+                ),
+            )}
+          </div>
+        </div>
+        <div className="p-7">
+          <div className={SECTION_GAP[style.spacing]}>
+            {mainBlocks.map(
+              (s) =>
+                s && (
+                  <section key={s.title}>
+                    <h2 className={`${spec.sectionTitleCls} ${dividerCls}`} style={sectionTitleStyle}>
+                      {s.title}
+                    </h2>
+                    <div className="mt-2">{s.body}</div>
+                  </section>
+                ),
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       id="resume-print-root"
