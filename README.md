@@ -20,7 +20,7 @@
   <img alt="safety" src="https://img.shields.io/badge/agent-Human--in--the--loop-orange">
 </p>
 
-> ⚡ **装个 skill 即用（CLI 轻模式）**：不装依赖、不建数据库——把 [skills/](skills/README.md) 下的技能装进 Claude Code / ZCode，立刻获得**简历诊断 · JD 解析 · 岗位匹配（确定性评分）· 简历定制（带溯源）· 打招呼语**五个轻场景，评分规则与防编造约束和 Web 版同源。投递看板、进度持久化、Agent 半自动投递等完整能力，走下面的 Web OS。
+> ⚡ **装个 skill 即用（CLI 轻模式）**：不装依赖、不建数据库——把 [skills/](skills/README.md) 下的技能装进 Claude Code / ZCode，立刻获得**简历诊断 · JD 解析 · 岗位匹配（确定性评分）· 简历定制（带溯源）· 打招呼语 · 职位雷达（只读聚合）**六个轻场景，评分规则与防编造约束和 Web 版同源。投递看板、进度持久化、Agent 半自动投递等完整能力，走下面的 Web OS。
 
 > 💡 **零成本开箱即用**：默认内置**本地引擎（演示模式）**——无需任何 API Key 即可跑通全部功能；在「设置 → 自备模型」粘贴 Key（GLM / DeepSeek / Kimi / 通义等国产模型）即切换真实大模型。
 

@@ -17,6 +17,7 @@ const SKILLS = [
   "job-match",
   "tailor-resume",
   "greeting",
+  "radar",
 ] as const;
 
 type SkillName = (typeof SKILLS)[number];
@@ -77,6 +78,24 @@ const schemas: Record<SkillName, z.ZodTypeAny> = {
     })
     .strict(),
   greeting: z.object({ greeting: z.string().min(1) }).strict(),
+  // 职位雷达抽取输出：与 prompts.ts radar_extract / Web 版 RadarCandidate 同构
+  radar: z
+    .object({
+      jobs: z.array(
+        z.object({
+          companyName: z.string(),
+          title: z.string(),
+          city: z.string(),
+          salaryMin: z.number().nullable(),
+          salaryMax: z.number().nullable(),
+          jobType: z.string(),
+          employmentType: z.string(),
+          url: z.string(),
+          postedNote: z.string(),
+        }),
+      ),
+    })
+    .strict(),
 };
 
 function readSkill(name: SkillName): string {

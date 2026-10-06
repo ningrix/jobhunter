@@ -1,8 +1,8 @@
 # JobHunter Skills — 装个 skill 即用
 
-五个求职轻场景，零安装、零 API key、零数据库：AI CLI（Claude Code / ZCode 等）自带的模型就是运行时。评分规则与防编造约束和 [JobHunter Web 版](https://github.com/ningrix/jobhunter)同源（`src/server/core/match-scorer.ts` / `src/server/ai/prompts.ts`）。
+六个求职轻场景，零安装、零 API key、零数据库：AI CLI（Claude Code / ZCode 等）自带的模型就是运行时。评分规则与防编造约束和 [JobHunter Web 版](https://github.com/ningrix/jobhunter)同源（`src/server/core/match-scorer.ts` / `src/server/ai/prompts.ts`）。
 
-## 五个入口
+## 六个入口
 
 | Skill | 用途 | 一句话 |
 |---|---|---|
@@ -11,6 +11,7 @@
 | `jobhunter-job-match` | 岗位匹配 | 确定性五维评分（脚本计算）+ AI 优势/差距/风险解读 |
 | `jobhunter-tailor-resume` | 简历定制 | 关键词覆盖 + 差距四分类 + 带溯源证据的措辞建议 |
 | `jobhunter-greeting` | 打招呼语 | ≤60 字开场白，只用真实事实 |
+| `jobhunter-radar` | 职位雷达 | 抓公开列表页 → 防编造抽取 → 条件过滤，只读聚合不代投 |
 
 ## 安装
 
@@ -19,7 +20,7 @@
 ```bash
 git clone https://github.com/ningrix/jobhunter
 mkdir -p ~/.claude/skills
-cp -r jobhunter/skills/diagnose-resume jobhunter/skills/parse-jd jobhunter/skills/job-match jobhunter/skills/tailor-resume jobhunter/skills/greeting ~/.claude/skills/
+cp -r jobhunter/skills/diagnose-resume jobhunter/skills/parse-jd jobhunter/skills/job-match jobhunter/skills/tailor-resume jobhunter/skills/greeting jobhunter/skills/radar ~/.claude/skills/
 ```
 
 **ZCode：** 同上，目标目录换成 `~/.zcode/skills/`。
