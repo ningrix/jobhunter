@@ -8,7 +8,6 @@ export interface AgentEventRow {
   userId: string;
   sessionId: string;
   jobId: string | null;
-  applicationId: string | null;
   action: string;
   source: string | null;
   result: string;
@@ -28,7 +27,6 @@ export async function logAgentEvent(
   input: {
     sessionId: string;
     jobId?: string;
-    applicationId?: string;
     action: AgentAction;
     source?: string;
     result: AgentEventResult;
@@ -41,7 +39,6 @@ export async function logAgentEvent(
     userId,
     sessionId: input.sessionId,
     jobId: input.jobId,
-    applicationId: input.applicationId,
     action: input.action,
     source: input.source,
     result: input.result,

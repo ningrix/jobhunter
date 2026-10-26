@@ -22,8 +22,6 @@ import { registerUser } from "@/server/core/auth-service";
 import { createResume } from "@/server/core/resume-service";
 import { createJob, type CreateJobInput } from "@/server/core/job-service";
 import { computeMatch } from "@/server/core/match-service";
-import { createApplication, transitionStage } from "@/server/core/application-service";
-import { createReminder } from "@/server/core/reminder-service";
 import { updateProfile } from "@/server/core/user-service";
 
 const DEMO_EMAIL = "demo@jobhunter.cn";
@@ -223,35 +221,6 @@ async function main() {
   for (const jobId of jobIds.slice(0, 3)) {
     await computeMatch(user.id, { jobId, resumeId: resume.id, useAI: true });
   }
-
-  // 投递流水线：字节 → 面试；小红书 → 已投递；米哈游 → 想投；拼多多（Java 岗不投，仅收藏）
-  const app1 = await createApplication(user.id, {
-    jobId: jobIds[0],
-    resumeId: resume.id,
-    notes: "内推，走快车道",
-  });
-  await transitionStage(user.id, app1.id, "applied", "官网投递完成");
-  await transitionStage(user.id, app1.id, "written_test", "通过简历筛选，收到笔试邀请");
-  await transitionStage(user.id, app1.id, "interview", "笔试通过，约一面");
-
-  const app2 = await createApplication(user.id, { jobId: jobIds[1], resumeId: resume.id });
-  await transitionStage(user.id, app2.id, "applied", "BOSS 直聘沟通后投递");
-
-  await createApplication(user.id, { jobId: jobIds[2], resumeId: resume.id });
-
-  // 提醒：一条已到期、一条未来
-  await createReminder(user.id, {
-    title: "准备字节一面复盘",
-    content: "整理电商业务的理解与性能优化案例",
-    remindAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-    applicationId: app1.id,
-  });
-  await createReminder(user.id, {
-    title: "跟进小红书 HR",
-    content: "投递已 3 天，发消息跟进进度",
-    remindAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-    applicationId: app2.id,
-  });
 
   console.log("✅ 演示数据就绪");
   console.log("   登录邮箱: demo@jobhunter.cn");

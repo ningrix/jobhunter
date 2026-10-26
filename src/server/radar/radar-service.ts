@@ -146,8 +146,9 @@ async function scanSite(
   };
 
   try {
-    // 1) 抓取公开列表页（resolve 可注入：测试环境绕开本机 fake-ip DNS 误伤）
-    const fetched = await safeFetchText(site.listUrl, { resolve: opts.resolve });
+    // 1) 抓取公开列表页（resolve 可注入：测试环境绕开本机 fake-ip DNS 误伤；
+    //    trustedSource：源 URL 为代码内置常量而非用户输入，放行 Clash fake-ip 段）
+    const fetched = await safeFetchText(site.listUrl, { resolve: opts.resolve, trustedSource: true });
     run.fetched = true;
     const raw = fetched.body;
     const pageText = htmlToText(raw).slice(0, 12_000);

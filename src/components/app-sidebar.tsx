@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Bell, Briefcase, Building2, Compass, FileText, LayoutDashboard, Menu, Plug, Settings, Sparkles, Target, X } from "lucide-react";
+import { Building2, FileText, LayoutDashboard, Menu, Plug, Settings, Sparkles, Target, X } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { LogoutButton } from "@/app/(app)/logout-button";
 
@@ -17,18 +17,9 @@ const GROUPS = [
     items: [
       { href: "/resumes", label: "简历工作台", icon: FileText },
       { href: "/jobs", label: "职位中心", icon: Target },
-      { href: "/job-sources", label: "职位来源", icon: Plug },
+      { href: "/company-sources", label: "官方招聘导航", icon: Building2 },
     ],
   },
-      {
-        label: "投递跟进",
-        items: [
-          { href: "/applications", label: "投递看板", icon: Briefcase },
-          { href: "/reminders", label: "提醒", icon: Bell },
-          { href: "/discovery", label: "职位发现", icon: Compass },
-          { href: "/company-sources", label: "官方招聘导航", icon: Building2 },
-        ],
-      },
   {
     label: "系统",
     items: [{ href: "/settings", label: "设置", icon: Settings }],

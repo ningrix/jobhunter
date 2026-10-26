@@ -73,14 +73,24 @@ export interface RadarSiteInfo {
 
 /**
  * ⚠️ NEEDS_VERIFICATION：站点可抓性随反爬策略波动。
- * v1 仅收录已验证服务端可抓的猎聘 m 站校招企业列表；后续加源 = 追加一行。
+ * 2026-10 多源实测结论：猎聘 m 站与贝壳官方校招列表页可服务端抓取（fetched: true）；
+ * Moka 托管页（58同城/金蝶/WPS）对无 Cookie 请求无限 302 跳登录，服务端不可抓，已移除——
+ * 追加新源前先 curl 跟踪跳转链，确认终点是列表页本身。
+ * 运行环境注意：Clash TUN/fake-IP DNS 曾触发 SSRF 拦截，radar 已以 trustedSource 放行 fake-ip 段。
  */
 export const RADAR_SITES: RadarSiteInfo[] = [
   {
     id: "liepin-campus",
     name: "猎聘 · 校园招聘企业列表",
     listUrl: "https://m.liepin.com/campus/comp-list/",
-    note: "公开校招企业列表页，无需登录；曾于 2026-09 实测服务端可抓取",
+    note: "公开校招企业列表页，无需登录；2026-09/2026-10 两次实测服务端可抓取",
+    needsVerification: true,
+  },
+  {
+    id: "ke-campus",
+    name: "贝壳找房 · 校园招聘",
+    listUrl: "https://campus.ke.com",
+    note: "官方校招列表页，无需登录；2026-10 实测服务端可抓取（fetched: true）",
     needsVerification: true,
   },
 ];

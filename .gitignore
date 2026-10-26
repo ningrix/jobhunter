@@ -14,3 +14,6 @@ output/
 .playwright-cli/
 .zcode/
 .research/
+
+# 个人材料：真实简历与他人论文，严禁公开（本地保留）
+docs/参考论文/

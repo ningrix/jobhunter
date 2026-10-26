@@ -284,82 +284,7 @@ export const embeddings = sqliteTable(
   (t) => [index("embeddings_owner_idx").on(t.ownerType, t.ownerId)],
 );
 
-// ———— 投递域 ————
-
-export const applications = sqliteTable(
-  "applications",
-  {
-    id: id(),
-    userId: text("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    jobId: text("job_id")
-      .notNull()
-      .references(() => jobs.id, { onDelete: "cascade" }),
-    resumeId: text("resume_id").references(() => resumes.id, { onDelete: "set null" }),
-    stage: text("stage").notNull().default("wishlist"),
-    appliedAt: integer("applied_at", { mode: "timestamp_ms" }),
-    nextActionAt: integer("next_action_at", { mode: "timestamp_ms" }),
-    notes: text("notes"),
-    createdAt: createdAt(),
-    updatedAt: updatedAt(),
-  },
-  (t) => [uniqueIndex("applications_uq").on(t.userId, t.jobId)],
-);
-
-export const applicationEvents = sqliteTable(
-  "application_events",
-  {
-    id: id(),
-    applicationId: text("application_id")
-      .notNull()
-      .references(() => applications.id, { onDelete: "cascade" }),
-    type: text("type").notNull(), // created | stage_change | note
-    fromStage: text("from_stage"),
-    toStage: text("to_stage"),
-    note: text("note"),
-    occurredAt: integer("occurred_at", { mode: "timestamp_ms" }).notNull().$defaultFn(now),
-  },
-  (t) => [index("application_events_app_idx").on(t.applicationId)],
-);
-
-export const reminders = sqliteTable(
-  "reminders",
-  {
-    id: id(),
-    userId: text("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    applicationId: text("application_id").references(() => applications.id, {
-      onDelete: "cascade",
-    }),
-    title: text("title").notNull(),
-    content: text("content"),
-    remindAt: integer("remind_at", { mode: "timestamp_ms" }).notNull(),
-    status: text("status").notNull().default("pending"), // pending | done | ignored
-    doneAt: integer("done_at", { mode: "timestamp_ms" }),
-    createdAt: createdAt(),
-  },
-  (t) => [index("reminders_user_idx").on(t.userId, t.remindAt)],
-);
-
-export const notifications = sqliteTable(
-  "notifications",
-  {
-    id: id(),
-    userId: text("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    type: text("type").notNull(),
-    title: text("title").notNull(),
-    content: text("content"),
-    isRead: integer("is_read", { mode: "boolean" }).notNull().default(false),
-    createdAt: createdAt(),
-  },
-  (t) => [index("notifications_user_idx").on(t.userId)],
-);
-
-// ———— V2：投递策略与 Agent 审计 ————
+// ———— 投递策略（求职条件中心） ————
 
 /** 投递策略（每用户一份默认策略，规则见 DeliveryPolicyRules） */
 export const applicationPolicies = sqliteTable(
@@ -388,10 +313,7 @@ export const agentEvents = sqliteTable(
       .references(() => users.id, { onDelete: "cascade" }),
     sessionId: text("session_id").notNull(),
     jobId: text("job_id").references(() => jobs.id, { onDelete: "set null" }),
-    applicationId: text("application_id").references(() => applications.id, {
-      onDelete: "set null",
-    }),
-    action: text("action").notNull(), // import | open_page | extract_jd | policy_check | generate_content | fill_form | wait_user_confirm | submit | blocked
+    action: text("action").notNull(), // import | open_page | extract_jd | radar_fetch | radar_extract | radar_import | generate_content
     source: text("source"),
     result: text("result").notNull(), // success | failed | blocked | waiting_user
     detail: text("detail", { mode: "json" }).$type<Record<string, unknown>>(),

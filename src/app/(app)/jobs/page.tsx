@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Briefcase, FileText, Plus, Radar, Search, Sparkles, Star, Target } from "lucide-react";
+import { Briefcase, Download, FileText, Plus, Radar, Search, Sparkles, Star, Target } from "lucide-react";
 import { api, waitForTask } from "@/lib/client";
 import { Modal } from "@/components/modal";
 import { Button } from "@/components/ui/button";
@@ -163,6 +163,29 @@ export default function JobsPage() {
     setMsg("");
   }
 
+  async function exportExcel() {
+    setBusy("export");
+    setError("");
+    try {
+      const kw = keyword.trim();
+      const res = await fetch(`/api/v1/jobs/export${kw ? `?keyword=${encodeURIComponent(kw)}` : ""}`);
+      if (!res.ok) {
+        const j = (await res.json().catch(() => null)) as { message?: string } | null;
+        throw new Error(j?.message ?? "导出失败");
+      }
+      const blob = await res.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `职位导出-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "导出失败");
+    } finally {
+      setBusy("");
+    }
+  }
+
   async function runRadar() {
     setRadarBusy(true);
     setRadarErr(false);
@@ -262,6 +285,10 @@ export default function JobsPage() {
         desc="雷达一键扫描公开职位自动入库 · 粘贴 JD 自动结构化建档"
         right={
           <div className="flex items-center gap-2">
+            <Button variant="ghost" onClick={exportExcel} disabled={radarBusy || busy !== ""} title="把当前职位列表导出为 Excel">
+              <Download size={15} strokeWidth={1.8} />
+              {busy === "export" ? "导出中…" : "导出 Excel"}
+            </Button>
             <Button variant="soft" onClick={runRadar} disabled={radarBusy} title="扫描公开职位页并自动入库">
               <Radar className={radarBusy ? "animate-spin" : ""} />
               {radarBusy ? "扫描中…" : "雷达扫描"}

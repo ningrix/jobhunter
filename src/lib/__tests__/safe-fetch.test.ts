@@ -72,3 +72,53 @@ describe("lib/safe-fetch", () => {
     ).rejects.toMatchObject({ code: 1003 });
   });
 });
+
+describe("lib/safe-fetch · trustedSource（内置源放行 Clash fake-ip 段）", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("默认拒绝 fake-ip 段：IPv6（fdfe:dcba:9876::/48 命中 fd 私有前缀）与 IPv4（198.18.0.0/15 之外的途径不可依赖，双栈下 IPv6 先触发）", async () => {
+    await expect(
+      safeFetchText("https://public.example.com/x", {
+        resolve: async () => [{ address: "fdfe:dcba:9876::1e" }],
+      }),
+    ).rejects.toMatchObject({ code: 1003 });
+  });
+
+  it("trustedSource 放行 IPv4 fake-ip 段", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("hello", { status: 200 })));
+    const r = await safeFetchText("https://public.example.com/x", {
+      resolve: async () => [{ address: "198.18.0.37" }],
+      trustedSource: true,
+    });
+    expect(r.body).toBe("hello");
+  });
+
+  it("trustedSource 放行 IPv6 fake-ip 段（fdfe:dcba:9876::/48）", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("v6", { status: 200 })));
+    const r = await safeFetchText("https://public.example.com/x", {
+      resolve: async () => [{ address: "fdfe:dcba:9876::1e" }],
+      trustedSource: true,
+    });
+    expect(r.body).toBe("v6");
+  });
+
+  it("trustedSource 仍拦截环回地址（127.0.0.1）", async () => {
+    await expect(
+      safeFetchText("https://public.example.com/x", {
+        resolve: async () => [{ address: "127.0.0.1" }],
+        trustedSource: true,
+      }),
+    ).rejects.toMatchObject({ code: 1003 });
+  });
+
+  it("trustedSource 仍拦截真实内网段（10.x）", async () => {
+    await expect(
+      safeFetchText("https://public.example.com/x", {
+        resolve: async () => [{ address: "10.0.0.5" }],
+        trustedSource: true,
+      }),
+    ).rejects.toMatchObject({ code: 1003 });
+  });
+});

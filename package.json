@@ -19,6 +19,7 @@
     "bcryptjs": "^3.0.2",
     "better-sqlite3": "^12.2.0",
     "drizzle-orm": "^0.44.5",
+    "exceljs": "^4.4.0",
     "jose": "^6.0.11",
     "lucide-react": "^1.39.0",
     "mammoth": "^1.9.1",

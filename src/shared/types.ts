@@ -156,50 +156,6 @@ export interface ResumeAnalysisResult {
   suggestions: ResumeSuggestion[];
 }
 
-// —— 投递阶段 ——
-
-export const APPLICATION_STAGES = [
-  "wishlist",
-  "applied",
-  "written_test",
-  "interview",
-  "offer",
-  "rejected",
-  "closed",
-] as const;
-
-export type ApplicationStage = (typeof APPLICATION_STAGES)[number];
-
-export const STAGE_LABELS: Record<ApplicationStage, string> = {
-  wishlist: "想投",
-  applied: "已投递",
-  written_test: "笔试",
-  interview: "面试",
-  offer: "Offer",
-  rejected: "已挂",
-  closed: "关闭",
-};
-
-export const STAGE_TRANSITIONS: Record<ApplicationStage, ApplicationStage[]> = {
-  wishlist: ["applied", "closed"],
-  applied: ["written_test", "interview", "rejected", "closed"],
-  written_test: ["interview", "rejected", "closed"],
-  interview: ["offer", "rejected", "closed"],
-  offer: ["closed", "rejected"],
-  rejected: ["closed"],
-  closed: [],
-};
-
-// 看板展示顺序（closed 不上板，通过筛选查看）
-export const BOARD_STAGES: ApplicationStage[] = [
-  "wishlist",
-  "applied",
-  "written_test",
-  "interview",
-  "offer",
-  "rejected",
-];
-
 // —— AI 任务 ——
 
 export type TaskType =
@@ -316,19 +272,7 @@ export type AgentAction =
   | "import" // 来源导入
   | "radar_fetch" // V3.3：雷达抓取公开列表页
   | "radar_extract" // V3.3：雷达 AI 结构化抽取
-  | "radar_import" // V3.3：雷达结果入库（含去重/过滤计数）
-  | "open_page"
-  | "extract_jd"
-  | "policy_check"
-  | "generate_content"
-  | "fill_form"
-  | "wait_user_confirm"
-  | "captcha_blocked" // V3P2：安全验证阻断（暂停，绝不绕过）
-  | "captcha_manual_resolved" // V3P2：用户完成验证后的 Agent 复检
-  | "user_handover" // V3P2：用户接管，Agent 退出
-  | "blocked_reminder_created" // V3P2：阻断联动站内提醒
-  | "submit"
-  | "blocked";
+  | "radar_import"; // V3.3：雷达结果入库（含去重/过滤计数）
 
 export type AgentEventResult = "success" | "failed" | "blocked" | "waiting_user";
 
@@ -354,18 +298,3 @@ export interface DeliveryPolicyRules {
   /** 每日最大投递数量（达到则：手动=需确认，自动=拒绝） */
   dailyMaxApplications?: number;
 }
-
-export type PolicyDecision = "ALLOW" | "REQUIRE_USER_CONFIRMATION" | "REJECT";
-
-export interface PolicyEvaluation {
-  decision: PolicyDecision;
-  reasons: string[];
-}
-
-// ———— V2：推荐分桶（Level 0） ————
-
-export const RECOMMEND_BUCKETS = ["all", "strong", "recommended", "confirm", "applied"] as const;
-export type RecommendBucket = (typeof RECOMMEND_BUCKETS)[number];
-
-export const STRONG_THRESHOLD = 85;
-export const RECOMMENDED_THRESHOLD = 70;

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { APPLICATION_STAGES, RESUME_TEMPLATE_IDS } from "./types";
+import { RESUME_TEMPLATE_IDS } from "./types";
 
 // —— 简历 ——
 export const resumeContentSchema = z.object({
@@ -132,7 +132,7 @@ export const importJobSchema = z.object({
   rawData: z.record(z.string(), z.unknown()).optional(),
 });
 
-// —— V2：投递策略 ——
+// —— V2：投递策略（求职条件中心，雷达扫描的城市过滤也读取） ——
 export const deliveryPolicySchema = z.object({
   name: z.string().max(50).optional(),
   cities: z.array(z.string().max(30)).max(20).optional(),
@@ -146,55 +146,6 @@ export const deliveryPolicySchema = z.object({
   acceptInternship: z.boolean().optional(),
   acceptCampus: z.boolean().optional(),
   dailyMaxApplications: z.number().int().min(0).max(200).optional(),
-});
-
-export const refreshRecommendationsSchema = z.object({
-  resumeId: z.string().optional(),
-});
-
-// —— 投递 ——
-export const stageSchema = z.enum(APPLICATION_STAGES);
-
-export const createApplicationSchema = z.object({
-  jobId: z.string().min(1),
-  resumeId: z.string().optional(),
-  stage: stageSchema.default("wishlist"),
-  notes: z.string().max(2000).optional(),
-});
-
-export const stageTransitionSchema = z.object({
-  toStage: stageSchema,
-  note: z.string().max(500).optional(),
-});
-
-export const createReminderSchema = z.object({
-  title: z.string().min(1).max(100),
-  content: z.string().max(500).optional(),
-  remindAt: z.coerce.date(),
-  applicationId: z.string().optional(),
-});
-
-export const updateApplicationSchema = z.object({
-  notes: z.string().max(2000).optional(),
-  nextActionAt: z.coerce.date().nullish(),
-  resumeId: z.string().nullish(),
-});
-
-export const applicationNoteSchema = z.object({
-  note: z.string().min(1).max(500),
-});
-
-export const listApplicationsQuerySchema = z.object({
-  stage: stageSchema.optional(),
-});
-
-export const listRemindersQuerySchema = z.object({
-  status: z.enum(["pending", "done", "ignored", "all"]).default("all"),
-  due: z.enum(["1", "0"]).optional(),
-});
-
-export const updateReminderSchema = z.object({
-  status: z.enum(["done", "ignored"]),
 });
 
 // —— AI 任务 ——

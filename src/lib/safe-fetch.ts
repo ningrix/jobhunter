@@ -8,7 +8,7 @@ import { AppError, ErrorCode } from "@/shared/errors";
  * 重定向逐跳复检（≤3 跳）、15s 超时、响应 ≤512KB。
  */
 
-const MAX_REDIRECTS = 3;
+const MAX_REDIRECTS = 6; // Moka 托管校招页跳转链可达 4-5 跳（租户/语言/活动重定向）
 const TIMEOUT_MS = 15_000;
 const MAX_BYTES = 512 * 1024;
 const UA =
@@ -17,12 +17,28 @@ const UA =
 export interface SafeFetchOptions {
   /** 测试注入用：默认 node:dns/promises lookup */
   resolve?: (host: string) => Promise<{ address: string }[]>;
+  /**
+   * 仅限「代码内置硬编码源」（如 RADAR_SITES，非用户输入）：
+   * 放行 Clash TUN fake-ip 段（198.18.0.0/15、fdfe:dcba:9876::/48）——TUN 模式下
+   * 系统 DNS 会把所有域名解析到该段，由 TUN 接管转发到真实目标。环回/私网段仍拦截。
+   */
+  trustedSource?: boolean;
 }
 
-function ipForbidden(ip: string): boolean {
+/** Clash TUN fake-ip 保留段（与真实内网段不同，trustedSource 源放行） */
+function isClashFakeIp(ip: string): boolean {
+  if (net.isIPv4(ip)) {
+    const [a, b] = ip.split(".").map(Number);
+    return a === 198 && (b === 18 || b === 19);
+  }
+  return ip.toLowerCase().startsWith("fdfe:dcba:9876:");
+}
+
+function ipForbidden(ip: string, trustedSource = false): boolean {
   // IPv4-mapped IPv6 归一
   const mapped = ip.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/i);
-  if (mapped) return ipForbidden(mapped[1]);
+  if (mapped) return ipForbidden(mapped[1], trustedSource);
+  if (trustedSource && isClashFakeIp(ip)) return false;
   if (net.isIPv4(ip)) {
     const [a, b] = ip.split(".").map(Number);
     return (
@@ -66,7 +82,7 @@ async function assertPublicUrl(urlStr: string, opts?: SafeFetchOptions): Promise
     throw new AppError(ErrorCode.FORBIDDEN, "禁止访问内网/保留地址");
   }
   if (net.isIP(host)) {
-    if (ipForbidden(host)) {
+    if (ipForbidden(host, opts?.trustedSource)) {
       throw new AppError(ErrorCode.FORBIDDEN, "禁止访问内网/保留 IP");
     }
     return u;
@@ -81,7 +97,7 @@ async function assertPublicUrl(urlStr: string, opts?: SafeFetchOptions): Promise
   if (!addrs?.length) {
     throw new AppError(ErrorCode.SOURCE_UNAVAILABLE, `域名解析失败：${host}`);
   }
-  if (addrs.some((a) => ipForbidden(a.address))) {
+  if (addrs.some((a) => ipForbidden(a.address, opts?.trustedSource))) {
     throw new AppError(ErrorCode.FORBIDDEN, "目标域名解析到内网/保留地址，已拦截");
   }
   return u;
