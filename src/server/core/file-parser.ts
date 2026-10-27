@@ -1,6 +1,6 @@
 import path from "node:path";
 import { AppError, ErrorCode } from "@/shared/errors";
-import { getStorage, UPLOAD_KEY_PREFIX, UPLOAD_ROOT } from "@/server/storage";
+import { getStorage, LocalStorage, UPLOAD_KEY_PREFIX, UPLOAD_ROOT } from "@/server/storage";
 
 export const MAX_UPLOAD_SIZE = 5 * 1024 * 1024; // 5MB
 /** 兼容别名：物理根目录已移交存储抽象层（server/storage） */
@@ -41,14 +41,9 @@ export function assertUploadType(filename: string, mime: string): void {
   }
 }
 
-/** 解析 files.path → 绝对路径，并强制限定在 data/uploads 内（防目录穿越） */
+/** 解析 files.path → 绝对路径，并强制限定在上传根目录内（防目录穿越）；与存储驱动共用同一套校验 */
 export function resolveUploadPath(relPath: string): string {
-  const abs = path.resolve(process.cwd(), relPath);
-  const normalized = path.normalize(abs);
-  if (normalized !== UPLOAD_ROOT && !normalized.startsWith(UPLOAD_ROOT + path.sep)) {
-    throw new AppError(ErrorCode.FORBIDDEN, "非法文件路径");
-  }
-  return normalized;
+  return new LocalStorage().resolve(relPath);
 }
 /** 读取已保存的上传文件（owner 校验由调用方完成）；经存储抽象层，本地/云端同一路径 */
 export async function readUpload(relPath: string): Promise<Buffer> {

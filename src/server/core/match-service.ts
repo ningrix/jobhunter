@@ -66,6 +66,9 @@ export async function computeMatch(
         gaps: rule.gaps,
         reasons: rule.reasons,
         summary: null, // 重新计算后旧 AI 解读作废
+        // 规则重算后旧混合明细作废：语义层关闭/任务失败时必须回落到纯规则口径，
+        // 不能留下 totalScore 与 hybridScores.totalScore 不一致的「假混合分」
+        hybridScores: null,
       })
       .where(eq(jobMatches.id, existing.id))
       .returning();

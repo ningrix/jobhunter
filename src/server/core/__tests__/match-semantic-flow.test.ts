@@ -127,6 +127,48 @@ describe("semantic match flow", () => {
     expect(m.summary).toBeTruthy();
   });
 
+  it("关闭语义层后重算：旧混合明细清空，不留与 totalScore 不一致的假混合分", async () => {
+    const { resumeId, jobId } = await setup();
+    await callRoute(patchProfile, {
+      method: "PATCH",
+      url: "/api/v1/users/me/profile",
+      token,
+      body: { semanticMatchEnabled: true },
+    });
+    const first = await callRoute(computeMatchRoute, {
+      method: "POST",
+      url: "/api/v1/matches",
+      token,
+      body: { jobId, resumeId, useAI: false },
+    });
+    const { match, taskId } = expectOk(first.json) as {
+      match: { id: string };
+      taskId: string;
+    };
+    await executeTask(taskId);
+    expect((await getMatch(userId, match.id)).hybridScores).toBeTruthy();
+
+    // 用户关闭语义层 → 同一「职位 × 简历」重算：上一轮混合明细必须作废
+    await callRoute(patchProfile, {
+      method: "PATCH",
+      url: "/api/v1/users/me/profile",
+      token,
+      body: { semanticMatchEnabled: false },
+    });
+    const second = await callRoute(computeMatchRoute, {
+      method: "POST",
+      url: "/api/v1/matches",
+      token,
+      body: { jobId, resumeId, useAI: false },
+    });
+    const again = expectOk(second.json) as { match: { id: string }; taskId: string | null };
+    expect(again.taskId).toBeNull();
+
+    const ruleOnly = await getMatch(userId, match.id);
+    expect(ruleOnly.hybridScores).toBeNull();
+    expect(ruleOnly.totalScore).toBeGreaterThan(0);
+  });
+
   it("向量缓存：同一简历/职位二次计算不新增 embeddings 行", async () => {
     const { resumeId, jobId } = await setup();
     await callRoute(patchProfile, {

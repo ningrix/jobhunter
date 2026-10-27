@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { jobs } from "@/db/schema";
 import { listResumes } from "./resume-service";
@@ -11,10 +11,11 @@ export interface DashboardOverview {
 
 export async function dashboardOverview(userId: string): Promise<DashboardOverview> {
   const db = getDb();
+  // 口径与职位中心列表一致（listJobs 默认 active + 未软删），否则删除/归档后计数与列表对不上
   const [jobCount] = await db
     .select({ n: sql<number>`count(*)` })
     .from(jobs)
-    .where(eq(jobs.userId, userId));
+    .where(and(eq(jobs.userId, userId), isNull(jobs.deletedAt), eq(jobs.status, "active")));
   const resumeList = await listResumes(userId);
   return { resumeCount: resumeList.length, jobCount: Number(jobCount.n) };
 }

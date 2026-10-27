@@ -25,6 +25,15 @@ describe("isLocalSingleUserMode", () => {
 
     vi.unstubAllEnvs();
   });
+
+  it("显式 AUTH_MODE=local 时生产环境同样免登录（桌面打包版契约）", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    process.env.AUTH_MODE = "local";
+    expect(isLocalSingleUserMode()).toBe(true);
+
+    vi.unstubAllEnvs();
+    delete process.env.AUTH_MODE;
+  });
 });
 
 describe("getOrCreateLocalUser", () => {

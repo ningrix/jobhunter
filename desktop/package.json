@@ -1,0 +1,16 @@
+{
+  "name": "jobhunter-desktop",
+  "version": "0.2.0",
+  "private": true,
+  "description": "JobHunter 桌面版：Electron 外壳 + 内置 Node 运行 Next standalone 服务",
+  "author": "JobHunter",
+  "main": "main/index.cjs",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis portable --x64"
+  },
+  "devDependencies": {
+    "electron": "^45.0.0",
+    "electron-builder": "^26.0.0"
+  }
+}

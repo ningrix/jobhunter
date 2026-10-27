@@ -1,4 +1,5 @@
-// 业务错误码分段：1xxx 通用 / 2xxx 用户 / 3xxx 简历 / 4xxx 职位 / 5xxx 匹配 / 6xxx 投递 / 9xxx AI
+// 业务错误码分段：1xxx 通用 / 2xxx 用户 / 3xxx 简历 / 4xxx 职位 / 5xxx 匹配 / 7xxx 职位来源 / 9xxx AI
+// （6xxx 投递与 71xx Agent 投递分段随「产品精简」下线，编号不复用，避免历史日志歧义）
 
 export const ErrorCode = {
   // 通用
@@ -23,12 +24,6 @@ export const ErrorCode = {
   // 匹配
   MATCH_NOT_FOUND: 5001,
   MATCH_EXISTS: 5002,
-  // 投递
-  APPLICATION_NOT_FOUND: 6001,
-  INVALID_STAGE_TRANSITION: 6002,
-  APPLICATION_EXISTS: 6003,
-  POLICY_REJECTED: 6030,
-  REMINDER_NOT_FOUND: 6101,
   // AI
   TASK_NOT_FOUND: 9001,
   TASK_FAILED: 9002,
@@ -38,10 +33,6 @@ export const ErrorCode = {
   SOURCE_NOT_FOUND: 7001,
   SOURCE_UNAVAILABLE: 7002,
   IMPORT_INVALID: 7003,
-  // Agent（V2）
-  AGENT_DRIVER_UNAVAILABLE: 7101,
-  AGENT_BLOCKED: 7102,
-  AGENT_SESSION_NOT_FOUND: 7103,
 } as const;
 
 export type ErrorCodeValue = (typeof ErrorCode)[keyof typeof ErrorCode];
@@ -56,24 +47,16 @@ function httpStatusFor(code: number): number {
     code === ErrorCode.RESUME_VERSION_NOT_FOUND ||
     code === ErrorCode.JOB_NOT_FOUND ||
     code === ErrorCode.MATCH_NOT_FOUND ||
-    code === ErrorCode.APPLICATION_NOT_FOUND ||
-    code === ErrorCode.REMINDER_NOT_FOUND ||
-    code === ErrorCode.SOURCE_NOT_FOUND ||
-    code === ErrorCode.AGENT_SESSION_NOT_FOUND
+    code === ErrorCode.SOURCE_NOT_FOUND
   ) {
     return 404;
   }
-  if (
-    code === ErrorCode.CONFLICT ||
-    code === ErrorCode.MATCH_EXISTS ||
-    code === ErrorCode.APPLICATION_EXISTS
-  ) {
+  if (code === ErrorCode.CONFLICT || code === ErrorCode.MATCH_EXISTS) {
     return 409;
   }
-  if (code === ErrorCode.POLICY_REJECTED) return 403;
   if (code === ErrorCode.RATE_LIMITED || code === ErrorCode.AI_LIMIT_EXCEEDED) return 429;
   if (code === ErrorCode.INTERNAL) return 500;
-  if (code === ErrorCode.SOURCE_UNAVAILABLE || code === ErrorCode.AGENT_DRIVER_UNAVAILABLE) return 503;
+  if (code === ErrorCode.SOURCE_UNAVAILABLE) return 503;
   if (code === ErrorCode.INVALID_CREDENTIALS) return 401;
   return 400;
 }

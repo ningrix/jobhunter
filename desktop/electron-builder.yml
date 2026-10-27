@@ -1,0 +1,58 @@
+appId: com.jobhunter.desktop
+productName: JobHunter
+copyright: Copyright © 2026 JobHunter
+
+directories:
+  output: release
+  buildResources: assets
+
+# 只收 Electron 外壳；服务端产物走 extraResources（不进 asar，原生模块免 unpack）
+files:
+  - main/**/*
+  - wizard/**/*
+  - assets/**/*
+  - preload.cjs
+  - package.json
+
+asar: true
+# 关键：禁止用 Electron ABI 重编原生模块（本机无 MSVC）。better-sqlite3 由内置 node.exe 加载。
+npmRebuild: false
+buildDependenciesFromSource: false
+# 国内网络：Electron 产物改从镜像下载
+electronDownload:
+  mirror: https://npmmirror.com/mirrors/electron/
+
+extraResources:
+  - from: build/runtime
+    to: runtime
+  - from: assets/icon.png
+    to: icon.png
+
+# 服务端目录不走 extraResources（会漏 node_modules / .next），打包后整包覆盖
+afterPack: scripts/after-pack.cjs
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+  icon: assets/icon.png
+  requestedExecutionLevel: asInvoker
+  artifactName: JobHunter-${version}-${arch}.${ext}
+  # 签名：本期未提供证书 → 产出未签名包；拿到证书后注入
+  #   CSC_LINK=<cert.pfx> CSC_KEY_PASSWORD=*** npm run dist
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowElevation: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  deleteAppDataOnUninstall: false
+  runAfterFinish: true
+  shortcutName: JobHunter
+
+portable:
+  artifactName: JobHunter-${version}-portable.${ext}

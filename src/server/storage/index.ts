@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { AppError, ErrorCode } from "@/shared/errors";
+import { DATA_ROOT } from "@/server/config/data-root";
 
 /**
  * V4.0 存储抽象：业务代码只面向 StorageService，不感知物理介质。
@@ -18,7 +19,8 @@ export interface StorageService {
 
 /** 既定键格式：与历史 files.path 一致（data/uploads/<uuid><ext>），无需数据迁移 */
 export const UPLOAD_KEY_PREFIX = "data/uploads/";
-export const UPLOAD_ROOT = path.resolve(process.cwd(), "data", "uploads");
+/** 物理根目录跟随数据根（桌面端 = %LOCALAPPDATA%\JobHunter\data\uploads） */
+export const UPLOAD_ROOT = path.join(DATA_ROOT, "uploads");
 
 export class LocalStorage implements StorageService {
   readonly driver = "local" as const;

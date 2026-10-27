@@ -17,3 +17,14 @@ output/
 
 # 个人材料：真实简历与他人论文，严禁公开（本地保留）
 docs/参考论文/
+
+# 桌面版构建产物（electron-builder 中间产物与自带 runtime 二进制）
+desktop/build/
+
+# 论文工具链（个人学术材料，本地保留不入库）
+scripts/build-thesis.mjs
+scripts/fix-toc.py
+01work/
+.hsk/
+.z/
+docs/论文/

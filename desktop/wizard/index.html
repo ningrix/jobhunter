@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'" />
+    <title>JobHunter 首次设置</title>
+    <style>
+      :root {
+        --bg: #ffffff;
+        --t1: #1a1f2b;
+        --t2: #4b5565;
+        --t3: #8a94a6;
+        --line: #e6e9ef;
+        --primary: #2563eb;
+        --primary-soft: #eef3ff;
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; margin: 0; }
+      body {
+        background: var(--bg);
+        color: var(--t1);
+        font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+        display: flex;
+        flex-direction: column;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      .head { padding: 28px 36px 0; }
+      .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15px; }
+      .dot { width: 10px; height: 10px; border-radius: 3px; background: var(--primary); }
+      .body { flex: 1; padding: 26px 36px 0; }
+      h1 { font-size: 22px; margin: 6px 0 10px; letter-spacing: .2px; }
+      p { color: var(--t2); font-size: 13.5px; line-height: 1.75; margin: 0 0 10px; }
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 14px 16px;
+        background: #fafbfd;
+        font-size: 13px;
+        color: var(--t2);
+      }
+      .card b { color: var(--t1); }
+      .path {
+        font-family: Consolas, monospace;
+        font-size: 12.5px;
+        color: var(--t1);
+        word-break: break-all;
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 8px 10px;
+        margin-top: 8px;
+      }
+      ul { margin: 6px 0 0; padding-left: 18px; color: var(--t2); font-size: 13px; line-height: 1.9; }
+      .foot {
+        padding: 18px 36px 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-top: 1px solid var(--line);
+        margin-top: 18px;
+      }
+      .steps { display: flex; gap: 6px; }
+      .steps i { width: 22px; height: 4px; border-radius: 2px; background: var(--line); display: block; }
+      .steps i.on { background: var(--primary); }
+      button {
+        border: 0;
+        border-radius: 9px;
+        padding: 9px 18px;
+        font-size: 13.5px;
+        font-weight: 600;
+        cursor: pointer;
+        background: var(--primary);
+        color: #fff;
+      }
+      button:disabled { opacity: .5; cursor: default; }
+      button.ghost { background: transparent; color: var(--t2); }
+      .hide { display: none; }
+    </style>
+  </head>
+  <body>
+    <div class="head">
+      <div class="brand"><span class="dot"></span> JobHunter</div>
+    </div>
+
+    <div class="body">
+      <section data-step="0">
+        <h1>欢迎使用 JobHunter</h1>
+        <p>这是一个在本机运行的智能求职工具：简历工作台、职位中心、智能匹配都在你自己的电脑上完成，数据不出本机。</p>
+        <div class="card">
+          <b>三步就能用起来</b>
+          <ul>
+            <li>导入或新建一份简历</li>
+            <li>粘贴 JD，或让雷达扫描公开职位</li>
+            <li>算匹配分，按建议改简历</li>
+          </ul>
+        </div>
+      </section>
+
+      <section data-step="1" class="hide">
+        <h1>数据存在哪里</h1>
+        <p>数据库和上传的简历文件都放在下面这个目录，不写进程序安装目录；卸载程序也不会删除它。</p>
+        <div class="card">
+          当前数据目录
+          <div class="path" id="dataDir">读取中…</div>
+        </div>
+        <p style="margin-top:12px">想换位置：退出后把整个目录拷到新位置，并在 <b>config.json</b> 里改 <b>dataDir</b> 即可。</p>
+      </section>
+
+      <section data-step="2" class="hide">
+        <h1>准备就绪</h1>
+        <p>首次启动会自动建库，大约需要几秒钟。默认使用内置的本地引擎（无需联网、无需 API Key），所有功能都能走通。</p>
+        <div class="card">
+          <b>想用真实大模型？</b>
+          <p style="margin:6px 0 0">进入应用后打开「设置 → 自备模型」，粘贴智谱 / DeepSeek / Kimi / 通义 的 API Key 即可，Key 会加密保存在本机。</p>
+        </div>
+      </section>
+    </div>
+
+    <div class="foot">
+      <div class="steps"><i class="on"></i><i></i><i></i></div>
+      <div>
+        <button class="ghost" id="back" disabled>上一步</button>
+        <button id="next">下一步</button>
+      </div>
+    </div>
+
+    <script>
+      const sections = [...document.querySelectorAll("section[data-step]")];
+      const dots = [...document.querySelectorAll(".steps i")];
+      const back = document.getElementById("back");
+      const next = document.getElementById("next");
+      let step = 0;
+
+      window.jh?.info().then((info) => {
+        document.getElementById("dataDir").textContent = info.dataDir;
+      });
+
+      function render() {
+        sections.forEach((s, i) => s.classList.toggle("hide", i !== step));
+        dots.forEach((d, i) => d.classList.toggle("on", i <= step));
+        back.disabled = step === 0;
+        next.textContent = step === 2 ? "开始使用" : "下一步";
+      }
+
+      back.onclick = () => {
+        if (step > 0) {
+          step -= 1;
+          render();
+        }
+      };
+
+      next.onclick = async () => {
+        if (step < 2) {
+          step += 1;
+          render();
+          return;
+        }
+        next.disabled = true;
+        next.textContent = "正在启动…";
+        await window.jh?.finishSetup();
+      };
+
+      render();
+    </script>
+  </body>
+</html>
